@@ -3,7 +3,7 @@
 *.iml
 
 # System
-.DS_Store
+**/.DS_Store
 
 # Docs
 /doc/notes/notes.txt
