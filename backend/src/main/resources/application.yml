@@ -1,0 +1,12 @@
+spring:
+  application:
+    name: llm-pet-project-backend
+
+server:
+  port: 8080
+
+ollama:
+  base-url: ${OLLAMA_BASE_URL:http://localhost:11434}
+  default-model: ${OLLAMA_DEFAULT_MODEL:codellama:70b}
+  connect-timeout-seconds: ${OLLAMA_CONNECT_TIMEOUT_SECONDS:10}
+  read-timeout-seconds: ${OLLAMA_READ_TIMEOUT_SECONDS:240}

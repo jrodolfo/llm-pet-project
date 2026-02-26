@@ -1,0 +1,67 @@
+package net.jrodolfo.llm.controller;
+
+import net.jrodolfo.llm.client.OllamaClientException;
+import net.jrodolfo.llm.dto.ChatRequest;
+import net.jrodolfo.llm.dto.ChatResponse;
+import net.jrodolfo.llm.service.OllamaService;
+import jakarta.validation.Valid;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
+
+import java.io.IOException;
+import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+
+@RestController
+@RequestMapping("/api/chat")
+public class ChatController {
+
+    private final OllamaService ollamaService;
+
+    public ChatController(OllamaService ollamaService) {
+        this.ollamaService = ollamaService;
+    }
+
+    @PostMapping
+    public ChatResponse chat(@Valid @RequestBody ChatRequest request) {
+        return ollamaService.chat(request.message(), request.model());
+    }
+
+    @PostMapping(value = "/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    public SseEmitter stream(@Valid @RequestBody ChatRequest request) {
+        SseEmitter emitter = new SseEmitter(0L);
+
+        CompletableFuture.runAsync(() -> {
+            try {
+                ollamaService.streamChat(request.message(), request.model(), token -> sendData(emitter, token));
+                sendData(emitter, "[DONE]");
+                emitter.complete();
+            } catch (Exception ex) {
+                emitter.completeWithError(ex);
+            }
+        });
+
+        return emitter;
+    }
+
+    @ExceptionHandler(OllamaClientException.class)
+    public ResponseEntity<Map<String, String>> handleOllamaError(OllamaClientException ex) {
+        return ResponseEntity.status(HttpStatus.BAD_GATEWAY)
+                .body(Map.of("error", ex.getMessage()));
+    }
+
+    private void sendData(SseEmitter emitter, String token) {
+        try {
+            emitter.send(SseEmitter.event().data(token));
+        } catch (IOException ex) {
+            throw new OllamaClientException("Failed to stream token to client.", ex);
+        }
+    }
+}

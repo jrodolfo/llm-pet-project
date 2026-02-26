@@ -1,0 +1,159 @@
+.home-page {
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  padding: 32px 16px;
+}
+
+.chat-card {
+  width: min(920px, 100%);
+  background: #ffffff;
+  border-radius: 16px;
+  box-shadow: 0 14px 40px rgba(15, 23, 42, 0.1);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 20px;
+}
+
+.chat-card header h1 {
+  margin: 0;
+  font-size: 1.5rem;
+}
+
+.chat-card header p {
+  margin: 4px 0 0;
+  color: #334155;
+}
+
+.error-banner {
+  background: #fee2e2;
+  color: #991b1b;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  padding: 10px;
+}
+
+.chat-window {
+  min-height: 420px;
+  max-height: 55vh;
+  overflow-y: auto;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 12px;
+  background: #f8fafc;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.chat-window.empty-state {
+  align-items: center;
+  justify-content: center;
+}
+
+.message-row {
+  display: flex;
+}
+
+.message-row.user {
+  justify-content: flex-end;
+}
+
+.message-row.assistant {
+  justify-content: flex-start;
+}
+
+.message-bubble {
+  max-width: 80%;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+}
+
+.message-row.user .message-bubble {
+  background: #dbeafe;
+  border-color: #bfdbfe;
+}
+
+.message-bubble p {
+  margin: 0;
+  white-space: pre-wrap;
+}
+
+.input-box {
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.controls-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.controls-row select {
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  padding: 6px 8px;
+}
+
+.checkbox-wrap {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.composer-row {
+  display: flex;
+  gap: 10px;
+}
+
+.composer-row textarea {
+  flex: 1;
+  resize: vertical;
+  min-height: 88px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  padding: 10px;
+  font: inherit;
+}
+
+.composer-row button {
+  align-self: flex-end;
+  border: none;
+  border-radius: 8px;
+  background: #0f172a;
+  color: #ffffff;
+  padding: 10px 16px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.composer-row button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+@media (max-width: 700px) {
+  .chat-card {
+    padding: 14px;
+  }
+
+  .composer-row {
+    flex-direction: column;
+  }
+
+  .composer-row button {
+    width: 100%;
+  }
+
+  .message-bubble {
+    max-width: 95%;
+  }
+}

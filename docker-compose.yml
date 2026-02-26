@@ -1,0 +1,21 @@
+services:
+  backend:
+    build:
+      context: ./backend
+    container_name: llm-backend
+    environment:
+      OLLAMA_BASE_URL: http://host.docker.internal:11434
+      OLLAMA_DEFAULT_MODEL: codellama:70b
+      OLLAMA_CONNECT_TIMEOUT_SECONDS: 10
+      OLLAMA_READ_TIMEOUT_SECONDS: 300
+    ports:
+      - "8080:8080"
+
+  frontend:
+    build:
+      context: ./frontend
+    container_name: llm-frontend
+    depends_on:
+      - backend
+    ports:
+      - "3000:80"

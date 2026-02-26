@@ -1,18 +1,19 @@
 # IDE
 .idea/
+*.iml
 
-# System Files
+# System
 .DS_Store
 
-# Git
-.git/
-
-# Doc
-doc/notes/notes.txt
+# Docs
+/doc/notes/notes.txt
 
 # Backend
 backend/target/
 
 # Frontend
+frontend/node_modules/
+frontend/dist/
 
-
+# Env
+.env
