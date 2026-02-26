@@ -1,0 +1,15 @@
+# IDE
+.idea/
+
+# System Files
+.DS_Store
+
+# Git
+.git/
+
+# Backend
+backend/target/
+
+# Frontend
+
+
