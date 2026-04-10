@@ -1,5 +1,6 @@
 # MCP Server
 
+[![ci](https://github.com/jrodolfo/llm-pet-project/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/jrodolfo/llm-pet-project/actions/workflows/ci.yml)
 ![node](https://img.shields.io/badge/node-20+-5fa04e)
 ![typescript](https://img.shields.io/badge/typescript-mcp%20server-3178c6)
 ![mcp](https://img.shields.io/badge/mcp-stdio-0a7ea4)

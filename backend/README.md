@@ -1,5 +1,6 @@
 # Backend
 
+[![ci](https://github.com/jrodolfo/llm-pet-project/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/jrodolfo/llm-pet-project/actions/workflows/ci.yml)
 ![java](https://img.shields.io/badge/java-21+-f89820)
 ![spring boot](https://img.shields.io/badge/spring%20boot-3.4-6db33f)
 ![ollama](https://img.shields.io/badge/ollama-chat%20proxy-222222)
