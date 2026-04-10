@@ -3,6 +3,7 @@ package net.jrodolfo.llm.controller;
 import net.jrodolfo.llm.client.OllamaClientException;
 import net.jrodolfo.llm.dto.ChatRequest;
 import net.jrodolfo.llm.dto.ChatResponse;
+import net.jrodolfo.llm.service.ChatOrchestratorService;
 import net.jrodolfo.llm.service.OllamaService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
@@ -23,15 +24,17 @@ import java.util.concurrent.CompletableFuture;
 @RequestMapping("/api/chat")
 public class ChatController {
 
+    private final ChatOrchestratorService chatOrchestratorService;
     private final OllamaService ollamaService;
 
-    public ChatController(OllamaService ollamaService) {
+    public ChatController(ChatOrchestratorService chatOrchestratorService, OllamaService ollamaService) {
+        this.chatOrchestratorService = chatOrchestratorService;
         this.ollamaService = ollamaService;
     }
 
     @PostMapping
     public ChatResponse chat(@Valid @RequestBody ChatRequest request) {
-        return ollamaService.chat(request.message(), request.model());
+        return chatOrchestratorService.chat(request.message(), request.model());
     }
 
     @PostMapping(value = "/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)

@@ -12,7 +12,12 @@ function ChatWindow({ messages }) {
   return (
     <div className="chat-window">
       {messages.map((message) => (
-        <MessageBubble key={message.id} role={message.role} content={message.content} />
+        <MessageBubble
+          key={message.id}
+          role={message.role}
+          content={message.content}
+          tool={message.tool}
+        />
       ))}
     </div>
   );

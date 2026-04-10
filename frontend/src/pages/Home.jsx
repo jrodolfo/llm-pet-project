@@ -9,8 +9,8 @@ function Home() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  const addMessage = (role, content) => {
-    setMessages((current) => [...current, { id: crypto.randomUUID(), role, content }]);
+  const addMessage = (role, content, tool = null) => {
+    setMessages((current) => [...current, { id: crypto.randomUUID(), role, content, tool }]);
   };
 
   const updateLastAssistant = (updater) => {
@@ -32,7 +32,7 @@ function Home() {
     try {
       if (!streaming) {
         const payload = await sendMessage({ message, model });
-        addMessage('assistant', payload.response || '(No response)');
+        addMessage('assistant', payload.response || '(No response)', payload.tool || null);
       } else {
         addMessage('assistant', '');
         await streamMessage({
