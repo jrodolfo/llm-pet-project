@@ -8,6 +8,7 @@ import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class McpClientTest {
@@ -32,6 +33,28 @@ class McpClientTest {
         assertEquals(Boolean.TRUE, result.get("ok"));
         assertEquals("list_recent_reports", result.get("tool"));
         assertTrue(result.containsKey("echo"));
+    }
+
+    @Test
+    void malformedResponseIncludesStderrSnippet() {
+        McpClient client = new McpClient(new ObjectMapper(), malformedResponseProperties());
+
+        McpClientException error = assertThrows(McpClientException.class, client::listTools);
+
+        assertTrue(error.getMessage().contains("Failed to parse MCP response line"));
+        assertTrue(error.getMessage().contains("bad fake stderr"));
+    }
+
+    @Test
+    void timeoutIncludesMethodContext() {
+        McpClient client = new McpClient(new ObjectMapper(), timeoutProperties());
+
+        McpClientException error = assertThrows(
+                McpClientException.class,
+                () -> client.callTool("list_recent_reports", Map.of("limit", 2))
+        );
+
+        assertTrue(error.getMessage().contains("Timed out waiting for MCP response"));
     }
 
     private static McpProperties fakeServerProperties() {
@@ -112,6 +135,100 @@ class McpClientTest {
                 ".",
                 5,
                 5
+        );
+    }
+
+    private static McpProperties malformedResponseProperties() {
+        String script = """
+                import readline from 'node:readline';
+
+                const rl = readline.createInterface({ input: process.stdin, crlfDelay: Infinity });
+
+                for await (const line of rl) {
+                  if (!line.trim()) continue;
+                  const message = JSON.parse(line);
+
+                  if (message.method === 'initialize') {
+                    console.log(JSON.stringify({
+                      jsonrpc: '2.0',
+                      id: message.id,
+                      result: {
+                        protocolVersion: '2024-11-05',
+                        capabilities: {},
+                        serverInfo: { name: 'fake-mcp', version: '1.0.0' }
+                      }
+                    }));
+                    continue;
+                  }
+
+                  if (message.method === 'notifications/initialized') {
+                    continue;
+                  }
+
+                  if (message.method === 'tools/list') {
+                    console.error('bad fake stderr');
+                    console.log('not-json');
+                  }
+                }
+                """;
+
+        return new McpProperties(
+                true,
+                "node",
+                List.of("--input-type=module", "-e", script),
+                ".",
+                5,
+                5
+        );
+    }
+
+    private static McpProperties timeoutProperties() {
+        String script = """
+                import readline from 'node:readline';
+
+                const rl = readline.createInterface({ input: process.stdin, crlfDelay: Infinity });
+
+                for await (const line of rl) {
+                  if (!line.trim()) continue;
+                  const message = JSON.parse(line);
+
+                  if (message.method === 'initialize') {
+                    console.log(JSON.stringify({
+                      jsonrpc: '2.0',
+                      id: message.id,
+                      result: {
+                        protocolVersion: '2024-11-05',
+                        capabilities: {},
+                        serverInfo: { name: 'fake-mcp', version: '1.0.0' }
+                      }
+                    }));
+                    continue;
+                  }
+
+                  if (message.method === 'notifications/initialized') {
+                    continue;
+                  }
+
+                  if (message.method === 'tools/call') {
+                    await new Promise((resolve) => setTimeout(resolve, 6000));
+                    console.log(JSON.stringify({
+                      jsonrpc: '2.0',
+                      id: message.id,
+                      result: {
+                        structuredContent: { ok: true }
+                      }
+                    }));
+                  }
+                }
+                """;
+
+        return new McpProperties(
+                true,
+                "node",
+                List.of("--input-type=module", "-e", script),
+                ".",
+                5,
+                1
         );
     }
 }

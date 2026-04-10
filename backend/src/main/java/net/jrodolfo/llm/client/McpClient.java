@@ -34,6 +34,7 @@ public class McpClient {
 
     private static final String JSON_RPC_VERSION = "2.0";
     private static final String PROTOCOL_VERSION = "2024-11-05";
+    private static final int STDERR_SNIPPET_LIMIT = 1200;
 
     private final ObjectMapper objectMapper;
     private final McpProperties properties;
@@ -112,14 +113,18 @@ public class McpClient {
         ProcessBuilder processBuilder = new ProcessBuilder(command);
         processBuilder.directory(Path.of(properties.workingDirectory()).toFile());
 
-        Process process = processBuilder.start();
-        McpSession session = new McpSession(
-                process,
-                Duration.ofSeconds(properties.startupTimeoutSeconds()),
-                Duration.ofSeconds(properties.toolTimeoutSeconds())
-        );
-        session.initialize();
-        return session;
+        try {
+            Process process = processBuilder.start();
+            McpSession session = new McpSession(
+                    process,
+                    Duration.ofSeconds(properties.startupTimeoutSeconds()),
+                    Duration.ofSeconds(properties.toolTimeoutSeconds())
+            );
+            session.initialize();
+            return session;
+        } catch (IOException | RuntimeException ex) {
+            throw new McpClientException("Failed to start MCP process.", ex);
+        }
     }
 
     private void ensureEnabled() {
@@ -141,6 +146,7 @@ public class McpClient {
         private final BufferedReader inputReader;
         private final OutputStream outputStream;
         private final ByteArrayOutputStream stderrBuffer = new ByteArrayOutputStream();
+        private final ExecutorService readerExecutor;
         private final ExecutorService stderrExecutor;
         private final Future<?> stderrReader;
         private final Duration startupTimeout;
@@ -153,6 +159,7 @@ public class McpClient {
             this.requestTimeout = requestTimeout;
             this.inputReader = new BufferedReader(new InputStreamReader(process.getInputStream(), StandardCharsets.UTF_8));
             this.outputStream = process.getOutputStream();
+            this.readerExecutor = Executors.newSingleThreadExecutor();
             this.stderrExecutor = Executors.newSingleThreadExecutor();
             this.stderrReader = stderrExecutor.submit(() -> copyStderr(process.getErrorStream()));
         }
@@ -168,7 +175,7 @@ public class McpClient {
             JsonNode response = sendRequest("initialize", initParams, startupTimeout);
             JsonNode serverProtocol = response.path("result").path("protocolVersion");
             if (serverProtocol.isMissingNode()) {
-                throw new McpClientException("MCP initialize response did not contain protocolVersion.");
+                throw failure("MCP initialize response did not contain protocolVersion.");
             }
 
             sendNotification("notifications/initialized", objectMapper.createObjectNode());
@@ -190,11 +197,11 @@ public class McpClient {
             JsonNode response = readMessage(timeout);
 
             if (response.has("error")) {
-                throw new McpClientException("MCP request failed for method " + method + ": " + response.path("error"));
+                throw failure("MCP request failed for method " + method + ": " + response.path("error"));
             }
 
             if (!Objects.equals(response.path("id").asLong(), id)) {
-                throw new McpClientException("MCP response id did not match request id for method " + method + ".");
+                throw failure("MCP response id did not match request id for method " + method + ".");
             }
 
             return response;
@@ -215,25 +222,26 @@ public class McpClient {
                 outputStream.write('\n');
                 outputStream.flush();
             } catch (IOException ex) {
-                throw new McpClientException("Failed to write MCP message.", ex);
+                throw failure("Failed to write MCP message.", ex);
             }
         }
 
         private JsonNode readMessage(Duration timeout) {
-            try (var executor = Executors.newSingleThreadExecutor()) {
-                Future<JsonNode> future = executor.submit(this::readMessageBlocking);
+            Future<JsonNode> future = readerExecutor.submit(this::readMessageBlocking);
+            try {
                 return future.get(timeout.toMillis(), TimeUnit.MILLISECONDS);
             } catch (TimeoutException ex) {
-                throw new McpClientException("Timed out waiting for MCP response.", ex);
+                future.cancel(true);
+                throw failure("Timed out waiting for MCP response after " + timeout.toSeconds() + " seconds.", ex);
             } catch (ExecutionException ex) {
                 Throwable cause = ex.getCause();
                 if (cause instanceof RuntimeException runtimeException) {
                     throw runtimeException;
                 }
-                throw new McpClientException("Failed to read MCP response.", cause);
+                throw failure("Failed to read MCP response.", cause);
             } catch (InterruptedException ex) {
                 Thread.currentThread().interrupt();
-                throw new McpClientException("Interrupted while waiting for MCP response.", ex);
+                throw failure("Interrupted while waiting for MCP response.", ex);
             }
         }
 
@@ -241,11 +249,13 @@ public class McpClient {
             try {
                 String line = inputReader.readLine();
                 if (line == null || line.isBlank()) {
-                    throw new McpClientException("No MCP response line was received.");
+                    throw failure("No MCP response line was received.");
                 }
                 return objectMapper.readTree(line);
+            } catch (McpClientException ex) {
+                throw ex;
             } catch (IOException ex) {
-                throw new UncheckedIOException(ex);
+                throw failure("Failed to parse MCP response line.", ex);
             }
         }
 
@@ -253,6 +263,50 @@ public class McpClient {
             try (stderrStream; stderrBuffer) {
                 stderrStream.transferTo(stderrBuffer);
             } catch (IOException ignored) {
+            }
+        }
+
+        private McpClientException failure(String message) {
+            return new McpClientException(buildDiagnosticMessage(message));
+        }
+
+        private McpClientException failure(String message, Throwable cause) {
+            return new McpClientException(buildDiagnosticMessage(message), cause);
+        }
+
+        private String buildDiagnosticMessage(String message) {
+            StringBuilder builder = new StringBuilder(message);
+            String stderrSnippet = readStderrSnippet();
+            if (!stderrSnippet.isBlank()) {
+                builder.append(" stderr: ").append(stderrSnippet);
+            }
+            String processState = describeProcessState();
+            if (!processState.isBlank()) {
+                builder.append(" ").append(processState);
+            }
+            return builder.toString();
+        }
+
+        private String readStderrSnippet() {
+            String stderrText = stderrBuffer.toString(StandardCharsets.UTF_8);
+            if (stderrText.isBlank()) {
+                return "";
+            }
+            String normalized = stderrText.replaceAll("\\s+", " ").trim();
+            if (normalized.length() <= STDERR_SNIPPET_LIMIT) {
+                return normalized;
+            }
+            return normalized.substring(0, STDERR_SNIPPET_LIMIT) + "...";
+        }
+
+        private String describeProcessState() {
+            if (process.isAlive()) {
+                return "";
+            }
+            try {
+                return "(mcp process exited with code " + process.exitValue() + ")";
+            } catch (IllegalThreadStateException ignored) {
+                return "";
             }
         }
 
@@ -281,6 +335,7 @@ public class McpClient {
                 Thread.currentThread().interrupt();
             } catch (ExecutionException | TimeoutException ignored) {
             }
+            readerExecutor.shutdownNow();
             stderrExecutor.shutdownNow();
         }
     }
