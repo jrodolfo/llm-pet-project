@@ -3,6 +3,7 @@ package net.jrodolfo.llm.service;
 import net.jrodolfo.llm.dto.ChatToolMetadata;
 import net.jrodolfo.llm.model.ChatSession;
 import net.jrodolfo.llm.model.ChatSessionMessage;
+import net.jrodolfo.llm.model.PendingToolCall;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
@@ -32,7 +33,18 @@ public class ChatMemoryService {
     }
 
     public ChatSession finishTurn(ChatSession session, String assistantMessage, ChatToolMetadata toolMetadata) {
-        ChatSession updatedSession = session.appendMessage("assistant", assistantMessage, toolMetadata, Instant.now());
+        return finishTurn(session, assistantMessage, toolMetadata, session.pendingToolCall());
+    }
+
+    public ChatSession finishTurn(
+            ChatSession session,
+            String assistantMessage,
+            ChatToolMetadata toolMetadata,
+            PendingToolCall pendingToolCall
+    ) {
+        ChatSession updatedSession = session
+                .withPendingToolCall(pendingToolCall)
+                .appendMessage("assistant", assistantMessage, toolMetadata, Instant.now());
         return sessionStore.save(updatedSession);
     }
 

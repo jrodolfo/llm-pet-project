@@ -1,5 +1,6 @@
 package net.jrodolfo.llm.service;
 
+import net.jrodolfo.llm.model.PendingToolCall;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
@@ -67,6 +68,16 @@ public class ChatToolRouterService {
         }
 
         return ToolDecision.none();
+    }
+
+    public ToolDecision resolvePending(PendingToolCall pendingToolCall, String message) {
+        String normalized = message.toLowerCase(Locale.ROOT).trim();
+
+        return switch (pendingToolCall.type()) {
+            case S3_CLOUDWATCH_REPORT -> resolvePendingS3(normalized, message, pendingToolCall);
+            case READ_LATEST_REPORT -> resolvePendingLatestReport(normalized, pendingToolCall);
+            default -> ToolDecision.none();
+        };
     }
 
     private ToolDecision matchReportRead(String normalized) {
@@ -173,6 +184,51 @@ public class ChatToolRouterService {
         );
     }
 
+    private ToolDecision resolvePendingS3(String normalized, String originalMessage, PendingToolCall pendingToolCall) {
+        String bucket = extractBucket(originalMessage);
+        if (bucket == null) {
+            if (looksLikeTopicChange(normalized)) {
+                return ToolDecision.none();
+            }
+            return ToolDecision.clarification(
+                    DecisionType.S3_CLOUDWATCH_REPORT,
+                    "I still need the bucket name to run the S3 CloudWatch report."
+            );
+        }
+
+        return new ToolDecision(
+                DecisionType.S3_CLOUDWATCH_REPORT,
+                null,
+                bucket,
+                extractRegion(normalized) != null ? extractRegion(normalized) : pendingToolCall.region(),
+                extractDays(normalized) != null ? extractDays(normalized) : pendingToolCall.days(),
+                pendingToolCall.reason() != null ? pendingToolCall.reason() : "s3 cloudwatch metrics request",
+                pendingToolCall.services()
+        );
+    }
+
+    private ToolDecision resolvePendingLatestReport(String normalized, PendingToolCall pendingToolCall) {
+        String reportType = inferReportType(normalized);
+        if ("all".equals(reportType)) {
+            if (looksLikeTopicChange(normalized)) {
+                return ToolDecision.none();
+            }
+            return ToolDecision.clarification(
+                    DecisionType.READ_LATEST_REPORT,
+                    "I still need to know whether you want the latest audit report or the latest s3 cloudwatch report."
+            );
+        }
+
+        return new ToolDecision(
+                DecisionType.READ_LATEST_REPORT,
+                reportType,
+                null,
+                null,
+                null,
+                pendingToolCall.reason() != null ? pendingToolCall.reason() : "latest report lookup"
+        );
+    }
+
     private String inferReportType(String normalized) {
         if (normalized.contains("s3")) {
             return "s3_cloudwatch";
@@ -255,6 +311,15 @@ public class ChatToolRouterService {
             return false;
         }
         return candidate.length() >= 3 && candidate.length() <= 255;
+    }
+
+    private boolean looksLikeTopicChange(String normalized) {
+        return normalized.contains("explain")
+                || normalized.contains("what is")
+                || normalized.contains("how do")
+                || normalized.contains("tell me")
+                || normalized.contains("summarize")
+                || normalized.contains("write ");
     }
 
     public enum DecisionType {

@@ -72,6 +72,7 @@ Relevant environment variables:
 Chat sessions are stored locally as JSON files under `../data/sessions` by default.
 
 The backend exposes a small local session API so the frontend can list, reopen, and delete stored chats.
+It also keeps pending tool clarification state in the session so a short follow-up reply can complete a previously blocked tool request.
 
 Relevant environment variable:
 

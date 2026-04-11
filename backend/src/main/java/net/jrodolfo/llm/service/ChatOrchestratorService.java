@@ -9,6 +9,7 @@ import net.jrodolfo.llm.dto.ReadReportSummaryToolRequest;
 import net.jrodolfo.llm.dto.S3CloudwatchReportToolRequest;
 import net.jrodolfo.llm.model.ChatSession;
 import net.jrodolfo.llm.model.ChatSessionMessage;
+import net.jrodolfo.llm.model.PendingToolCall;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -52,7 +53,8 @@ public class ChatOrchestratorService {
     public PreparedChat prepareChat(String message, String model, String sessionId) {
         String resolvedModel = ollamaService.resolveModel(model);
         ChatSession session = chatMemoryService.startTurn(sessionId, model, resolvedModel, message);
-        ChatToolRouterService.ToolDecision decision = toolRouterService.route(message);
+        ChatToolRouterService.ToolDecision routedDecision = toolRouterService.route(message);
+        ChatToolRouterService.ToolDecision decision = resolveDecision(session, message, routedDecision);
         if (decision.needsClarification()) {
             ChatToolMetadata metadata = new ChatToolMetadata(
                     true,
@@ -60,7 +62,8 @@ public class ChatOrchestratorService {
                     "clarification-needed",
                     decision.clarification()
             );
-            ChatSession persistedSession = chatMemoryService.finishTurn(session, decision.clarification(), metadata);
+            PendingToolCall pendingToolCall = pendingToolCallForDecision(decision);
+            ChatSession persistedSession = chatMemoryService.finishTurn(session, decision.clarification(), metadata, pendingToolCall);
             return PreparedChat.forImmediateResponse(new ChatResponse(
                     decision.clarification(),
                     resolvedModel,
@@ -70,14 +73,16 @@ public class ChatOrchestratorService {
         }
 
         if (!decision.shouldUseTool()) {
-            return PreparedChat.forPrompt(buildConversationPrompt(session, message, null, null), resolvedModel, null, session);
+            ChatSession clearedSession = session.withPendingToolCall(null);
+            return PreparedChat.forPrompt(buildConversationPrompt(clearedSession, message, null, null), resolvedModel, null, clearedSession);
         }
 
         try {
             ToolExecution execution = executeTool(decision);
-            String augmentedPrompt = buildConversationPrompt(session, message, execution, decision.reason());
+            ChatSession clearedSession = session.withPendingToolCall(null);
+            String augmentedPrompt = buildConversationPrompt(clearedSession, message, execution, decision.reason());
             ChatToolMetadata metadata = new ChatToolMetadata(true, execution.toolName(), "success", execution.summary());
-            return PreparedChat.forPrompt(augmentedPrompt, resolvedModel, metadata, session);
+            return PreparedChat.forPrompt(augmentedPrompt, resolvedModel, metadata, clearedSession);
         } catch (IllegalArgumentException | McpClientException ex) {
             ChatToolMetadata metadata = new ChatToolMetadata(
                     true,
@@ -85,7 +90,12 @@ public class ChatOrchestratorService {
                     "failed",
                     ex.getMessage()
             );
-            ChatSession persistedSession = chatMemoryService.finishTurn(session, buildFailureMessage(decision, ex.getMessage()), metadata);
+            ChatSession persistedSession = chatMemoryService.finishTurn(
+                    session,
+                    buildFailureMessage(decision, ex.getMessage()),
+                    metadata,
+                    null
+            );
             ChatResponse fallbackResponse = new ChatResponse(
                     buildFailureMessage(decision, ex.getMessage()),
                     resolvedModel,
@@ -101,6 +111,55 @@ public class ChatOrchestratorService {
             throw new IllegalArgumentException("Only prompt-based prepared chats can be completed.");
         }
         return chatMemoryService.finishTurn(preparedChat.session(), assistantResponse, preparedChat.toolMetadata());
+    }
+
+    private ChatToolRouterService.ToolDecision resolveDecision(
+            ChatSession session,
+            String message,
+            ChatToolRouterService.ToolDecision routedDecision
+    ) {
+        if (session.pendingToolCall() == null) {
+            return routedDecision;
+        }
+
+        ChatToolRouterService.ToolDecision pendingDecision = toolRouterService.resolvePending(session.pendingToolCall(), message);
+        if (pendingDecision.shouldUseTool()) {
+            return pendingDecision;
+        }
+        if (pendingDecision.needsClarification() && routedDecision.type() == ChatToolRouterService.DecisionType.NONE) {
+            return pendingDecision;
+        }
+        return routedDecision;
+    }
+
+    private PendingToolCall pendingToolCallForDecision(ChatToolRouterService.ToolDecision decision) {
+        if (!decision.needsClarification()) {
+            return null;
+        }
+
+        return switch (decision.type()) {
+            case S3_CLOUDWATCH_REPORT -> new PendingToolCall(
+                    decision.type(),
+                    decision.reportType(),
+                    decision.bucket(),
+                    decision.region(),
+                    decision.days(),
+                    decision.reason(),
+                    decision.services(),
+                    List.of("bucket")
+            );
+            case READ_LATEST_REPORT -> new PendingToolCall(
+                    decision.type(),
+                    decision.reportType(),
+                    null,
+                    null,
+                    null,
+                    decision.reason(),
+                    decision.services(),
+                    List.of("reportType")
+            );
+            default -> null;
+        };
     }
 
     private ToolExecution executeTool(ChatToolRouterService.ToolDecision decision) {

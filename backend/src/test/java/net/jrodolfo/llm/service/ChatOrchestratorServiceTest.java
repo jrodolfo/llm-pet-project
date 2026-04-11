@@ -12,6 +12,7 @@ import net.jrodolfo.llm.dto.ListReportsRequest;
 import net.jrodolfo.llm.dto.McpToolInvocationResponse;
 import net.jrodolfo.llm.dto.ReadReportSummaryToolRequest;
 import net.jrodolfo.llm.dto.S3CloudwatchReportToolRequest;
+import net.jrodolfo.llm.model.PendingToolCall;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -122,11 +123,12 @@ class ChatOrchestratorServiceTest {
     @Test
     void clarificationRequestReturnsImmediateClarificationResponse() {
         FakeOllamaService ollamaService = new FakeOllamaService();
+        FileChatSessionStore sessionStore = newSessionStore();
         ChatOrchestratorService orchestrator = new ChatOrchestratorService(
                 ollamaService,
                 new FakeMcpService(),
                 new ChatToolRouterService(),
-                new ChatMemoryService(newSessionStore())
+                new ChatMemoryService(sessionStore)
         );
 
         ChatResponse response = orchestrator.chat("check bucket metrics for the last 7 days", "llama3:8b", null);
@@ -136,16 +138,20 @@ class ChatOrchestratorServiceTest {
         assertEquals("clarification-needed", response.tool().status());
         assertFalse(ollamaService.generateCalled);
         assertNotNull(response.sessionId());
+        PendingToolCall pendingToolCall = sessionStore.findById(response.sessionId()).orElseThrow().pendingToolCall();
+        assertNotNull(pendingToolCall);
+        assertEquals(ChatToolRouterService.DecisionType.S3_CLOUDWATCH_REPORT, pendingToolCall.type());
     }
 
     @Test
     void ambiguousLatestReportRequestReturnsClarificationResponse() {
         FakeOllamaService ollamaService = new FakeOllamaService();
+        FileChatSessionStore sessionStore = newSessionStore();
         ChatOrchestratorService orchestrator = new ChatOrchestratorService(
                 ollamaService,
                 new FakeMcpService(),
                 new ChatToolRouterService(),
-                new ChatMemoryService(newSessionStore())
+                new ChatMemoryService(sessionStore)
         );
 
         ChatResponse response = orchestrator.chat("read the latest report", "llama3:8b", null);
@@ -154,6 +160,70 @@ class ChatOrchestratorServiceTest {
         assertNotNull(response.tool());
         assertEquals("clarification-needed", response.tool().status());
         assertFalse(ollamaService.generateCalled);
+        PendingToolCall pendingToolCall = sessionStore.findById(response.sessionId()).orElseThrow().pendingToolCall();
+        assertNotNull(pendingToolCall);
+        assertEquals(ChatToolRouterService.DecisionType.READ_LATEST_REPORT, pendingToolCall.type());
+    }
+
+    @Test
+    void bucketFollowUpUsesPendingClarificationState() {
+        FakeOllamaService ollamaService = new FakeOllamaService();
+        FileChatSessionStore sessionStore = newSessionStore();
+        FakeMcpService mcpService = new FakeMcpService();
+        ChatOrchestratorService orchestrator = new ChatOrchestratorService(
+                ollamaService,
+                mcpService,
+                new ChatToolRouterService(),
+                new ChatMemoryService(sessionStore)
+        );
+
+        ChatResponse clarification = orchestrator.chat("check bucket metrics for the last 7 days", "llama3:8b", null);
+        ChatResponse followUp = orchestrator.chat("jrodolfo.net", "llama3:8b", clarification.sessionId());
+
+        assertEquals("jrodolfo.net", mcpService.lastS3Request.bucket());
+        assertEquals("success", followUp.tool().status());
+        assertNull(sessionStore.findById(followUp.sessionId()).orElseThrow().pendingToolCall());
+        assertTrue(ollamaService.lastPrompt.contains("tool_name: s3_cloudwatch_report"));
+    }
+
+    @Test
+    void reportTypeFollowUpUsesPendingClarificationState() {
+        FakeOllamaService ollamaService = new FakeOllamaService();
+        FileChatSessionStore sessionStore = newSessionStore();
+        FakeMcpService mcpService = new FakeMcpService();
+        ChatOrchestratorService orchestrator = new ChatOrchestratorService(
+                ollamaService,
+                mcpService,
+                new ChatToolRouterService(),
+                new ChatMemoryService(sessionStore)
+        );
+
+        ChatResponse clarification = orchestrator.chat("read the latest report", "llama3:8b", null);
+        ChatResponse followUp = orchestrator.chat("audit", "llama3:8b", clarification.sessionId());
+
+        assertEquals("audit", mcpService.lastListReportsRequest.reportType());
+        assertEquals("/tmp/report-1", mcpService.lastReadReportSummaryRequest.runDir());
+        assertEquals("success", followUp.tool().status());
+        assertNull(sessionStore.findById(followUp.sessionId()).orElseThrow().pendingToolCall());
+    }
+
+    @Test
+    void unrelatedFollowUpFallsBackToRegularChat() {
+        FakeOllamaService ollamaService = new FakeOllamaService();
+        FileChatSessionStore sessionStore = newSessionStore();
+        ChatOrchestratorService orchestrator = new ChatOrchestratorService(
+                ollamaService,
+                new FakeMcpService(),
+                new ChatToolRouterService(),
+                new ChatMemoryService(sessionStore)
+        );
+
+        ChatResponse clarification = orchestrator.chat("check bucket metrics for the last 7 days", "llama3:8b", null);
+        ChatResponse followUp = orchestrator.chat("explain recursion", "llama3:8b", clarification.sessionId());
+
+        assertEquals("plain response", followUp.response());
+        assertNull(followUp.tool());
+        assertNull(sessionStore.findById(followUp.sessionId()).orElseThrow().pendingToolCall());
     }
 
     @Test
@@ -202,6 +272,10 @@ class ChatOrchestratorServiceTest {
     }
 
     private static class FakeMcpService extends McpService {
+        private S3CloudwatchReportToolRequest lastS3Request;
+        private ListReportsRequest lastListReportsRequest;
+        private ReadReportSummaryToolRequest lastReadReportSummaryRequest;
+
         private FakeMcpService() {
             super(new FakeMcpClient(), new McpProperties(true, "node", List.of(), ".", 5, 30));
         }
@@ -220,6 +294,7 @@ class ChatOrchestratorServiceTest {
 
         @Override
         public McpToolInvocationResponse runS3CloudwatchReport(S3CloudwatchReportToolRequest request) {
+            this.lastS3Request = request;
             return new McpToolInvocationResponse("s3_cloudwatch_report", Map.of(
                     "ok", true,
                     "summary", Map.of(
@@ -232,6 +307,7 @@ class ChatOrchestratorServiceTest {
 
         @Override
         public McpToolInvocationResponse listRecentReports(ListReportsRequest request) {
+            this.lastListReportsRequest = request;
             return new McpToolInvocationResponse("list_recent_reports", Map.of(
                     "ok", true,
                     "reports", List.of(Map.of("run_dir", "/tmp/report-1"))
@@ -240,6 +316,7 @@ class ChatOrchestratorServiceTest {
 
         @Override
         public McpToolInvocationResponse readReportSummary(ReadReportSummaryToolRequest request) {
+            this.lastReadReportSummaryRequest = request;
             return new McpToolInvocationResponse("read_report_summary", Map.of(
                     "ok", true,
                     "report_type", "audit",

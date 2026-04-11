@@ -99,7 +99,8 @@ class SessionControllerTest {
                                 new ChatToolMetadata(true, "aws_region_audit", "success", "done"),
                                 timestamp.plusSeconds(30)
                         )
-                )
+                ),
+                null
         );
         sessionStore.save(session);
     }
