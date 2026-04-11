@@ -4,14 +4,14 @@
 ![java](https://img.shields.io/badge/java-21+-f89820)
 ![spring boot](https://img.shields.io/badge/spring%20boot-3.4-6db33f)
 ![react](https://img.shields.io/badge/react-frontend-61dafb)
-![ollama](https://img.shields.io/badge/ollama-local%20llm-222222)
+![ollama](https://img.shields.io/badge/ollama-current%20provider-222222)
 ![mcp](https://img.shields.io/badge/mcp-local%20tools-0a7ea4)
 
-Proof-of-concept app to chat with local LLMs via Ollama, with optional local MCP-backed tooling for AWS audit and report workflows and local JSON-backed conversation memory.
+Proof-of-concept app to chat with local LLMs through a backend model-provider layer, currently implemented with Ollama, with optional local MCP-backed tooling for AWS audit and report workflows and local JSON-backed conversation memory.
 
 Architecture:
 
-React Frontend -> Spring Boot Backend -> Ollama REST API -> Local LLM
+React Frontend -> Spring Boot Backend -> Model Provider -> Ollama REST API -> Local LLM
 
 Optional tool path:
 
@@ -192,6 +192,7 @@ Compose uses `host.docker.internal:11434` so backend container can reach host Ol
 - `OLLAMA_DEFAULT_MODEL` (default: `codellama:70b`)
 - `OLLAMA_CONNECT_TIMEOUT_SECONDS` (default: `10`)
 - `OLLAMA_READ_TIMEOUT_SECONDS` (default: `240`)
+- `APP_MODEL_PROVIDER` (default: `ollama`)
 - `MCP_ENABLED` (default: `false`)
 - `MCP_COMMAND` (default: `node`)
 - `MCP_WORKING_DIRECTORY` (default: `../mcp`)
@@ -203,6 +204,7 @@ Compose uses `host.docker.internal:11434` so backend container can reach host Ol
 ## Notes
 
 - The default chat flow does not require MCP.
+- The backend now uses a model-provider abstraction and currently ships with the `ollama` provider.
 - The backend can call MCP tools only when `MCP_ENABLED=true`.
 - The MCP server uses local `stdio` transport and is designed for private, local execution.
 - The `scripts/reports/` tree contains generated local artifacts and is intentionally reused by both the shell tools and the MCP wrappers.

@@ -5,8 +5,8 @@ import net.jrodolfo.llm.client.OllamaClientException;
 import net.jrodolfo.llm.dto.ChatRequest;
 import net.jrodolfo.llm.dto.ChatResponse;
 import net.jrodolfo.llm.dto.ChatStreamMetadata;
+import net.jrodolfo.llm.provider.ChatModelProvider;
 import net.jrodolfo.llm.service.ChatOrchestratorService;
-import net.jrodolfo.llm.service.OllamaService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -27,16 +27,16 @@ import java.util.concurrent.CompletableFuture;
 public class ChatController {
 
     private final ChatOrchestratorService chatOrchestratorService;
-    private final OllamaService ollamaService;
+    private final ChatModelProvider chatModelProvider;
     private final ObjectMapper objectMapper;
 
     public ChatController(
             ChatOrchestratorService chatOrchestratorService,
-            OllamaService ollamaService,
+            ChatModelProvider chatModelProvider,
             ObjectMapper objectMapper
     ) {
         this.chatOrchestratorService = chatOrchestratorService;
-        this.ollamaService = ollamaService;
+        this.chatModelProvider = chatModelProvider;
         this.objectMapper = objectMapper;
     }
 
@@ -71,7 +71,7 @@ public class ChatController {
                 }
 
                 StringBuilder responseBuffer = new StringBuilder();
-                ollamaService.streamChat(preparedChat.prompt(), preparedChat.model(), token -> {
+                chatModelProvider.streamChat(preparedChat.prompt(), preparedChat.model(), token -> {
                     responseBuffer.append(token);
                     sendData(emitter, token);
                 });

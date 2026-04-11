@@ -13,6 +13,7 @@ import net.jrodolfo.llm.dto.McpToolInvocationResponse;
 import net.jrodolfo.llm.dto.ReadReportSummaryToolRequest;
 import net.jrodolfo.llm.dto.S3CloudwatchReportToolRequest;
 import net.jrodolfo.llm.model.PendingToolCall;
+import net.jrodolfo.llm.provider.ChatModelProvider;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -33,14 +34,14 @@ class ChatOrchestratorServiceTest {
 
     @Test
     void noToolRequestFallsBackToRegularChatAndPersistsSession() {
-        FakeOllamaService ollamaService = new FakeOllamaService();
+        FakeChatModelProvider chatModelProvider = new FakeChatModelProvider();
         FileChatSessionStore sessionStore = newSessionStore();
-        ChatOrchestratorService orchestrator = newOrchestrator(ollamaService, new FakeMcpService(), sessionStore);
+        ChatOrchestratorService orchestrator = newOrchestrator(chatModelProvider, new FakeMcpService(), sessionStore);
 
         ChatResponse response = orchestrator.chat("explain recursion", "llama3:8b", null);
 
         assertEquals("plain response", response.response());
-        assertTrue(ollamaService.lastPrompt.contains("<current_user_message>"));
+        assertTrue(chatModelProvider.lastPrompt.contains("<current_user_message>"));
         assertNull(response.tool());
         assertNotNull(response.sessionId());
 
@@ -52,32 +53,32 @@ class ChatOrchestratorServiceTest {
 
     @Test
     void followUpRequestIncludesConversationHistory() {
-        FakeOllamaService ollamaService = new FakeOllamaService();
+        FakeChatModelProvider chatModelProvider = new FakeChatModelProvider();
         FileChatSessionStore sessionStore = newSessionStore();
-        ChatOrchestratorService orchestrator = newOrchestrator(ollamaService, new FakeMcpService(), sessionStore);
+        ChatOrchestratorService orchestrator = newOrchestrator(chatModelProvider, new FakeMcpService(), sessionStore);
 
         ChatResponse firstResponse = orchestrator.chat("explain recursion", "llama3:8b", null);
         ChatResponse secondResponse = orchestrator.chat("give me an example", "llama3:8b", firstResponse.sessionId());
 
         assertEquals(firstResponse.sessionId(), secondResponse.sessionId());
-        assertTrue(ollamaService.lastPrompt.contains("<conversation_history>"));
-        assertTrue(ollamaService.lastPrompt.contains("user: explain recursion"));
-        assertTrue(ollamaService.lastPrompt.contains("assistant: plain response"));
+        assertTrue(chatModelProvider.lastPrompt.contains("<conversation_history>"));
+        assertTrue(chatModelProvider.lastPrompt.contains("user: explain recursion"));
+        assertTrue(chatModelProvider.lastPrompt.contains("assistant: plain response"));
     }
 
     @Test
     void auditRequestUsesToolAddsMetadataAndPersistsAssistantToolState() {
-        FakeOllamaService ollamaService = new FakeOllamaService();
+        FakeChatModelProvider chatModelProvider = new FakeChatModelProvider();
         FileChatSessionStore sessionStore = newSessionStore();
-        ChatOrchestratorService orchestrator = newOrchestrator(ollamaService, new FakeMcpService(), sessionStore);
+        ChatOrchestratorService orchestrator = newOrchestrator(chatModelProvider, new FakeMcpService(), sessionStore);
 
         ChatResponse response = orchestrator.chat("run aws audit for us-east-2 sts", "llama3:8b", null);
 
         assertNotNull(response.tool());
         assertTrue(response.tool().used());
         assertEquals("aws_region_audit", response.tool().name());
-        assertTrue(ollamaService.lastPrompt.contains("<tool_context>"));
-        assertTrue(ollamaService.lastPrompt.contains("tool_name: aws_region_audit"));
+        assertTrue(chatModelProvider.lastPrompt.contains("<tool_context>"));
+        assertTrue(chatModelProvider.lastPrompt.contains("tool_name: aws_region_audit"));
 
         var storedSession = sessionStore.findById(response.sessionId()).orElseThrow();
         assertEquals("aws_region_audit", storedSession.messages().get(1).tool().name());
@@ -85,16 +86,16 @@ class ChatOrchestratorServiceTest {
 
     @Test
     void toolFailureReturnsExplicitFailureResponseAndPersistsIt() {
-        FakeOllamaService ollamaService = new FakeOllamaService();
+        FakeChatModelProvider chatModelProvider = new FakeChatModelProvider();
         FileChatSessionStore sessionStore = newSessionStore();
-        ChatOrchestratorService orchestrator = newOrchestrator(ollamaService, new ErrorMcpService(), sessionStore);
+        ChatOrchestratorService orchestrator = newOrchestrator(chatModelProvider, new ErrorMcpService(), sessionStore);
 
         ChatResponse response = orchestrator.chat("run aws audit for us-east-2 sts", "llama3:8b", null);
 
         assertTrue(response.response().contains("I tried to use the local tool"));
         assertNotNull(response.tool());
         assertEquals("failed", response.tool().status());
-        assertFalse(ollamaService.generateCalled);
+        assertFalse(chatModelProvider.generateCalled);
 
         var storedSession = sessionStore.findById(response.sessionId()).orElseThrow();
         assertEquals("failed", storedSession.messages().get(1).tool().status());
@@ -102,16 +103,16 @@ class ChatOrchestratorServiceTest {
 
     @Test
     void clarificationRequestReturnsImmediateClarificationResponse() {
-        FakeOllamaService ollamaService = new FakeOllamaService();
+        FakeChatModelProvider chatModelProvider = new FakeChatModelProvider();
         FileChatSessionStore sessionStore = newSessionStore();
-        ChatOrchestratorService orchestrator = newOrchestrator(ollamaService, new FakeMcpService(), sessionStore);
+        ChatOrchestratorService orchestrator = newOrchestrator(chatModelProvider, new FakeMcpService(), sessionStore);
 
         ChatResponse response = orchestrator.chat("check bucket metrics for the last 7 days", "llama3:8b", null);
 
         assertTrue(response.response().contains("I can run the S3 CloudWatch report, but I need the bucket name."));
         assertNotNull(response.tool());
         assertEquals("clarification-needed", response.tool().status());
-        assertFalse(ollamaService.generateCalled);
+        assertFalse(chatModelProvider.generateCalled);
         assertNotNull(response.sessionId());
         PendingToolCall pendingToolCall = sessionStore.findById(response.sessionId()).orElseThrow().pendingToolCall();
         assertNotNull(pendingToolCall);
@@ -120,16 +121,16 @@ class ChatOrchestratorServiceTest {
 
     @Test
     void ambiguousLatestReportRequestReturnsClarificationResponse() {
-        FakeOllamaService ollamaService = new FakeOllamaService();
+        FakeChatModelProvider chatModelProvider = new FakeChatModelProvider();
         FileChatSessionStore sessionStore = newSessionStore();
-        ChatOrchestratorService orchestrator = newOrchestrator(ollamaService, new FakeMcpService(), sessionStore);
+        ChatOrchestratorService orchestrator = newOrchestrator(chatModelProvider, new FakeMcpService(), sessionStore);
 
         ChatResponse response = orchestrator.chat("read the latest report", "llama3:8b", null);
 
         assertTrue(response.response().contains("latest audit report or the latest s3 cloudwatch report"));
         assertNotNull(response.tool());
         assertEquals("clarification-needed", response.tool().status());
-        assertFalse(ollamaService.generateCalled);
+        assertFalse(chatModelProvider.generateCalled);
         PendingToolCall pendingToolCall = sessionStore.findById(response.sessionId()).orElseThrow().pendingToolCall();
         assertNotNull(pendingToolCall);
         assertEquals(ChatToolRouterService.DecisionType.READ_LATEST_REPORT, pendingToolCall.type());
@@ -137,10 +138,10 @@ class ChatOrchestratorServiceTest {
 
     @Test
     void bucketFollowUpUsesPendingClarificationState() {
-        FakeOllamaService ollamaService = new FakeOllamaService();
+        FakeChatModelProvider chatModelProvider = new FakeChatModelProvider();
         FileChatSessionStore sessionStore = newSessionStore();
         FakeMcpService mcpService = new FakeMcpService();
-        ChatOrchestratorService orchestrator = newOrchestrator(ollamaService, mcpService, sessionStore);
+        ChatOrchestratorService orchestrator = newOrchestrator(chatModelProvider, mcpService, sessionStore);
 
         ChatResponse clarification = orchestrator.chat("check bucket metrics for the last 7 days", "llama3:8b", null);
         ChatResponse followUp = orchestrator.chat("jrodolfo.net", "llama3:8b", clarification.sessionId());
@@ -148,15 +149,15 @@ class ChatOrchestratorServiceTest {
         assertEquals("jrodolfo.net", mcpService.lastS3Request.bucket());
         assertEquals("success", followUp.tool().status());
         assertNull(sessionStore.findById(followUp.sessionId()).orElseThrow().pendingToolCall());
-        assertTrue(ollamaService.lastPrompt.contains("tool_name: s3_cloudwatch_report"));
+        assertTrue(chatModelProvider.lastPrompt.contains("tool_name: s3_cloudwatch_report"));
     }
 
     @Test
     void reportTypeFollowUpUsesPendingClarificationState() {
-        FakeOllamaService ollamaService = new FakeOllamaService();
+        FakeChatModelProvider chatModelProvider = new FakeChatModelProvider();
         FileChatSessionStore sessionStore = newSessionStore();
         FakeMcpService mcpService = new FakeMcpService();
-        ChatOrchestratorService orchestrator = newOrchestrator(ollamaService, mcpService, sessionStore);
+        ChatOrchestratorService orchestrator = newOrchestrator(chatModelProvider, mcpService, sessionStore);
 
         ChatResponse clarification = orchestrator.chat("read the latest report", "llama3:8b", null);
         ChatResponse followUp = orchestrator.chat("audit", "llama3:8b", clarification.sessionId());
@@ -169,9 +170,9 @@ class ChatOrchestratorServiceTest {
 
     @Test
     void unrelatedFollowUpFallsBackToRegularChat() {
-        FakeOllamaService ollamaService = new FakeOllamaService();
+        FakeChatModelProvider chatModelProvider = new FakeChatModelProvider();
         FileChatSessionStore sessionStore = newSessionStore();
-        ChatOrchestratorService orchestrator = newOrchestrator(ollamaService, new FakeMcpService(), sessionStore);
+        ChatOrchestratorService orchestrator = newOrchestrator(chatModelProvider, new FakeMcpService(), sessionStore);
 
         ChatResponse clarification = orchestrator.chat("check bucket metrics for the last 7 days", "llama3:8b", null);
         ChatResponse followUp = orchestrator.chat("explain recursion", "llama3:8b", clarification.sessionId());
@@ -184,7 +185,7 @@ class ChatOrchestratorServiceTest {
     @Test
     void completePreparedChatPersistsStreamedAssistantResponse() {
         FileChatSessionStore sessionStore = newSessionStore();
-        ChatOrchestratorService orchestrator = newOrchestrator(new FakeOllamaService(), new FakeMcpService(), sessionStore);
+        ChatOrchestratorService orchestrator = newOrchestrator(new FakeChatModelProvider(), new FakeMcpService(), sessionStore);
 
         ChatOrchestratorService.PreparedChat preparedChat = orchestrator.prepareChat("explain recursion", "llama3:8b", null);
         var persistedSession = orchestrator.completePreparedChat(preparedChat, "streamed response");
@@ -201,12 +202,12 @@ class ChatOrchestratorServiceTest {
     }
 
     private ChatOrchestratorService newOrchestrator(
-            FakeOllamaService ollamaService,
+            ChatModelProvider chatModelProvider,
             McpService mcpService,
             FileChatSessionStore sessionStore
     ) {
         return new ChatOrchestratorService(
-                ollamaService,
+                chatModelProvider,
                 mcpService,
                 new ChatToolRouterService(),
                 new ChatMemoryService(sessionStore, new ChatSessionMetadataService()),
@@ -215,23 +216,9 @@ class ChatOrchestratorServiceTest {
         );
     }
 
-    private static final class FakeOllamaService extends OllamaService {
+    private static final class FakeChatModelProvider implements ChatModelProvider {
         private String lastPrompt;
         private boolean generateCalled;
-
-        private FakeOllamaService() {
-            super(new net.jrodolfo.llm.client.OllamaClient(new ObjectMapper(), new net.jrodolfo.llm.config.OllamaProperties(
-                    "http://localhost:11434",
-                    "llama3:8b",
-                    10,
-                    10
-            )));
-        }
-
-        @Override
-        public ChatResponse chat(String message, String model, net.jrodolfo.llm.dto.ChatToolMetadata toolMetadata, String sessionId) {
-            return chat(message, model, toolMetadata, sessionId, null);
-        }
 
         @Override
         public ChatResponse chat(
@@ -244,6 +231,16 @@ class ChatOrchestratorServiceTest {
             this.lastPrompt = message;
             this.generateCalled = true;
             return new ChatResponse("plain response", resolveModel(model), toolMetadata, sessionId, pendingTool);
+        }
+
+        @Override
+        public void streamChat(String message, String model, java.util.function.Consumer<String> tokenConsumer) {
+            throw new UnsupportedOperationException("Not needed for this test.");
+        }
+
+        @Override
+        public String resolveModel(String model) {
+            return (model == null || model.isBlank()) ? "llama3:8b" : model;
         }
     }
 

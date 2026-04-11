@@ -10,6 +10,7 @@ import net.jrodolfo.llm.dto.ReadReportSummaryToolRequest;
 import net.jrodolfo.llm.dto.S3CloudwatchReportToolRequest;
 import net.jrodolfo.llm.model.ChatSession;
 import net.jrodolfo.llm.model.PendingToolCall;
+import net.jrodolfo.llm.provider.ChatModelProvider;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -18,7 +19,7 @@ import java.util.Map;
 @Service
 public class ChatOrchestratorService {
 
-    private final OllamaService ollamaService;
+    private final ChatModelProvider chatModelProvider;
     private final McpService mcpService;
     private final ChatToolRouterService toolRouterService;
     private final ChatMemoryService chatMemoryService;
@@ -26,14 +27,14 @@ public class ChatOrchestratorService {
     private final ChatSessionService chatSessionService;
 
     public ChatOrchestratorService(
-            OllamaService ollamaService,
+            ChatModelProvider chatModelProvider,
             McpService mcpService,
             ChatToolRouterService toolRouterService,
             ChatMemoryService chatMemoryService,
             ChatPromptBuilder chatPromptBuilder,
             ChatSessionService chatSessionService
     ) {
-        this.ollamaService = ollamaService;
+        this.chatModelProvider = chatModelProvider;
         this.mcpService = mcpService;
         this.toolRouterService = toolRouterService;
         this.chatMemoryService = chatMemoryService;
@@ -46,7 +47,7 @@ public class ChatOrchestratorService {
         if (preparedChat.immediateResponse() != null) {
             return preparedChat.immediateResponse();
         }
-        ChatResponse response = ollamaService.chat(
+        ChatResponse response = chatModelProvider.chat(
                 preparedChat.prompt(),
                 preparedChat.model(),
                 preparedChat.toolMetadata(),
@@ -58,7 +59,7 @@ public class ChatOrchestratorService {
     }
 
     public PreparedChat prepareChat(String message, String model, String sessionId) {
-        String resolvedModel = ollamaService.resolveModel(model);
+        String resolvedModel = chatModelProvider.resolveModel(model);
         ChatSession session = chatMemoryService.startTurn(sessionId, model, resolvedModel, message);
         ChatToolRouterService.ToolDecision routedDecision = toolRouterService.route(message);
         ChatToolRouterService.ToolDecision decision = resolveDecision(session, message, routedDecision);

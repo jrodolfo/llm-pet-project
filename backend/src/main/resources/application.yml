@@ -6,6 +6,8 @@ server:
   port: 8080
 
 app:
+  model:
+    provider: ${APP_MODEL_PROVIDER:ollama}
   storage:
     sessions-directory: ${APP_STORAGE_SESSIONS_DIRECTORY:../data/sessions}
 

@@ -3,10 +3,10 @@
 [![ci](https://github.com/jrodolfo/llm-pet-project/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/jrodolfo/llm-pet-project/actions/workflows/ci.yml)
 ![java](https://img.shields.io/badge/java-21+-f89820)
 ![spring boot](https://img.shields.io/badge/spring%20boot-3.4-6db33f)
-![ollama](https://img.shields.io/badge/ollama-chat%20proxy-222222)
+![ollama](https://img.shields.io/badge/ollama-current%20provider-222222)
 ![mcp](https://img.shields.io/badge/mcp-optional%20integration-0a7ea4)
 
-Spring Boot API that proxies requests to Ollama, orchestrates optional local MCP tools, and persists local JSON chat sessions.
+Spring Boot API that routes chat through a model-provider abstraction, currently backed by Ollama, orchestrates optional local MCP tools, and persists local JSON chat sessions.
 
 ## Run
 
@@ -60,6 +60,7 @@ MCP_ENABLED=true mvn spring-boot:run
 
 Relevant environment variables:
 
+- `APP_MODEL_PROVIDER` default: `ollama`
 - `MCP_ENABLED`
 - `MCP_COMMAND` default: `node`
 - `MCP_WORKING_DIRECTORY` default: `../mcp`
