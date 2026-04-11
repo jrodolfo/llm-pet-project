@@ -8,7 +8,6 @@ import net.jrodolfo.llm.dto.ListReportsRequest;
 import net.jrodolfo.llm.dto.ReadReportSummaryToolRequest;
 import net.jrodolfo.llm.dto.S3CloudwatchReportToolRequest;
 import net.jrodolfo.llm.model.ChatSession;
-import net.jrodolfo.llm.model.ChatSessionMessage;
 import net.jrodolfo.llm.model.PendingToolCall;
 import org.springframework.stereotype.Service;
 
@@ -22,17 +21,20 @@ public class ChatOrchestratorService {
     private final McpService mcpService;
     private final ChatToolRouterService toolRouterService;
     private final ChatMemoryService chatMemoryService;
+    private final ChatPromptBuilder chatPromptBuilder;
 
     public ChatOrchestratorService(
             OllamaService ollamaService,
             McpService mcpService,
             ChatToolRouterService toolRouterService,
-            ChatMemoryService chatMemoryService
+            ChatMemoryService chatMemoryService,
+            ChatPromptBuilder chatPromptBuilder
     ) {
         this.ollamaService = ollamaService;
         this.mcpService = mcpService;
         this.toolRouterService = toolRouterService;
         this.chatMemoryService = chatMemoryService;
+        this.chatPromptBuilder = chatPromptBuilder;
     }
 
     public ChatResponse chat(String message, String model, String sessionId) {
@@ -74,13 +76,22 @@ public class ChatOrchestratorService {
 
         if (!decision.shouldUseTool()) {
             ChatSession clearedSession = session.withPendingToolCall(null);
-            return PreparedChat.forPrompt(buildConversationPrompt(clearedSession, message, null, null), resolvedModel, null, clearedSession);
+            return PreparedChat.forPrompt(buildConversationPrompt(clearedSession, message, null), resolvedModel, null, clearedSession);
         }
 
         try {
             ToolExecution execution = executeTool(decision);
             ChatSession clearedSession = session.withPendingToolCall(null);
-            String augmentedPrompt = buildConversationPrompt(clearedSession, message, execution, decision.reason());
+            String augmentedPrompt = buildConversationPrompt(
+                    clearedSession,
+                    message,
+                    new ChatPromptBuilder.ToolContext(
+                            execution.toolName(),
+                            decision.reason(),
+                            execution.summary(),
+                            execution.result()
+                    )
+            );
             ChatToolMetadata metadata = new ChatToolMetadata(true, execution.toolName(), "success", execution.summary());
             return PreparedChat.forPrompt(augmentedPrompt, resolvedModel, metadata, clearedSession);
         } catch (IllegalArgumentException | McpClientException ex) {
@@ -195,42 +206,12 @@ public class ChatOrchestratorService {
         };
     }
 
-    private String buildConversationPrompt(
-            ChatSession session,
-            String currentUserMessage,
-            ToolExecution toolExecution,
-            String toolReason
-    ) {
-        StringBuilder builder = new StringBuilder();
-        builder.append("You are a concise, factual assistant.\n");
-        builder.append("Use the conversation history below when it is relevant.\n");
-
-        List<ChatSessionMessage> history = chatMemoryService.historyBeforeLatestUserMessage(session);
-        if (!history.isEmpty()) {
-            builder.append("\n<conversation_history>\n");
-            for (ChatSessionMessage message : history) {
-                builder.append(message.role()).append(": ").append(message.content()).append("\n");
-            }
-            builder.append("</conversation_history>\n");
-        }
-
-        builder.append("\n<current_user_message>\n");
-        builder.append(currentUserMessage.trim()).append("\n");
-        builder.append("</current_user_message>\n");
-
-        if (toolExecution != null) {
-            builder.append("\n<tool_context>\n");
-            builder.append("tool_reason: ").append(toolReason).append("\n");
-            builder.append("tool_name: ").append(toolExecution.toolName()).append("\n");
-            builder.append("tool_summary: ").append(toolExecution.summary()).append("\n");
-            builder.append("tool_result: ").append(toolExecution.result()).append("\n");
-            builder.append("</tool_context>\n");
-        }
-
-        builder.append("\nAnswer the current user message directly. ");
-        builder.append("If tool output is present, ground your answer in it. ");
-        builder.append("If the available context is incomplete, say so explicitly.");
-        return builder.toString();
+    private String buildConversationPrompt(ChatSession session, String currentUserMessage, ChatPromptBuilder.ToolContext toolContext) {
+        return chatPromptBuilder.build(new ChatPromptBuilder.PromptContext(
+                currentUserMessage,
+                chatMemoryService.historyBeforeLatestUserMessage(session),
+                toolContext
+        ));
     }
 
     private String buildFailureMessage(ChatToolRouterService.ToolDecision decision, String errorMessage) {
@@ -269,31 +250,47 @@ public class ChatOrchestratorService {
 
     @SuppressWarnings("unchecked")
     private String summarizeReadReport(Map<String, Object> result) {
-        Map<String, Object> summary = (Map<String, Object>) result.get("summary");
+        Map<String, Object> summary = nestedMap(result, "summary");
         String reportType = String.valueOf(result.getOrDefault("report_type", "report"));
-        Object successCount = summary != null ? summary.get("success_count") : null;
-        Object failureCount = summary != null ? summary.get("failure_count") : null;
-        return "Read " + reportType + " with success_count=%s and failure_count=%s.".formatted(successCount, failureCount);
+        return "Read %s with success_count=%s and failure_count=%s.".formatted(
+                reportType,
+                valueOrUnknown(summary, "success_count"),
+                valueOrUnknown(summary, "failure_count")
+        );
     }
 
     @SuppressWarnings("unchecked")
     private String summarizeAudit(Map<String, Object> result) {
-        Map<String, Object> summary = (Map<String, Object>) result.get("summary");
+        Map<String, Object> summary = nestedMap(result, "summary");
         return "AWS audit completed with success_count=%s, failure_count=%s, skipped_count=%s.".formatted(
-                summary.get("success_count"),
-                summary.get("failure_count"),
-                summary.get("skipped_count")
+                valueOrUnknown(summary, "success_count"),
+                valueOrUnknown(summary, "failure_count"),
+                valueOrUnknown(summary, "skipped_count")
         );
     }
 
     @SuppressWarnings("unchecked")
     private String summarizeS3Report(Map<String, Object> result) {
-        Map<String, Object> summary = (Map<String, Object>) result.get("summary");
+        Map<String, Object> summary = nestedMap(result, "summary");
         return "S3 CloudWatch report for bucket %s completed with success_count=%s and failure_count=%s.".formatted(
-                summary.get("bucket"),
-                summary.get("success_count"),
-                summary.get("failure_count")
+                valueOrUnknown(summary, "bucket"),
+                valueOrUnknown(summary, "success_count"),
+                valueOrUnknown(summary, "failure_count")
         );
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> nestedMap(Map<String, Object> source, String key) {
+        Object value = source.get(key);
+        if (value instanceof Map<?, ?> map) {
+            return (Map<String, Object>) map;
+        }
+        return Map.of();
+    }
+
+    private Object valueOrUnknown(Map<String, Object> map, String key) {
+        Object value = map.get(key);
+        return value == null ? "unknown" : value;
     }
 
     private record ToolExecution(

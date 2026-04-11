@@ -39,7 +39,8 @@ class ChatOrchestratorServiceTest {
                 ollamaService,
                 new FakeMcpService(),
                 new ChatToolRouterService(),
-                new ChatMemoryService(sessionStore)
+                new ChatMemoryService(sessionStore),
+                new ChatPromptBuilder(new ObjectMapper())
         );
 
         ChatResponse response = orchestrator.chat("explain recursion", "llama3:8b", null);
@@ -63,7 +64,8 @@ class ChatOrchestratorServiceTest {
                 ollamaService,
                 new FakeMcpService(),
                 new ChatToolRouterService(),
-                new ChatMemoryService(sessionStore)
+                new ChatMemoryService(sessionStore),
+                new ChatPromptBuilder(new ObjectMapper())
         );
 
         ChatResponse firstResponse = orchestrator.chat("explain recursion", "llama3:8b", null);
@@ -83,7 +85,8 @@ class ChatOrchestratorServiceTest {
                 ollamaService,
                 new FakeMcpService(),
                 new ChatToolRouterService(),
-                new ChatMemoryService(sessionStore)
+                new ChatMemoryService(sessionStore),
+                new ChatPromptBuilder(new ObjectMapper())
         );
 
         ChatResponse response = orchestrator.chat("run aws audit for us-east-2 sts", "llama3:8b", null);
@@ -106,7 +109,8 @@ class ChatOrchestratorServiceTest {
                 ollamaService,
                 new ErrorMcpService(),
                 new ChatToolRouterService(),
-                new ChatMemoryService(sessionStore)
+                new ChatMemoryService(sessionStore),
+                new ChatPromptBuilder(new ObjectMapper())
         );
 
         ChatResponse response = orchestrator.chat("run aws audit for us-east-2 sts", "llama3:8b", null);
@@ -128,7 +132,8 @@ class ChatOrchestratorServiceTest {
                 ollamaService,
                 new FakeMcpService(),
                 new ChatToolRouterService(),
-                new ChatMemoryService(sessionStore)
+                new ChatMemoryService(sessionStore),
+                new ChatPromptBuilder(new ObjectMapper())
         );
 
         ChatResponse response = orchestrator.chat("check bucket metrics for the last 7 days", "llama3:8b", null);
@@ -151,7 +156,8 @@ class ChatOrchestratorServiceTest {
                 ollamaService,
                 new FakeMcpService(),
                 new ChatToolRouterService(),
-                new ChatMemoryService(sessionStore)
+                new ChatMemoryService(sessionStore),
+                new ChatPromptBuilder(new ObjectMapper())
         );
 
         ChatResponse response = orchestrator.chat("read the latest report", "llama3:8b", null);
@@ -174,7 +180,8 @@ class ChatOrchestratorServiceTest {
                 ollamaService,
                 mcpService,
                 new ChatToolRouterService(),
-                new ChatMemoryService(sessionStore)
+                new ChatMemoryService(sessionStore),
+                new ChatPromptBuilder(new ObjectMapper())
         );
 
         ChatResponse clarification = orchestrator.chat("check bucket metrics for the last 7 days", "llama3:8b", null);
@@ -195,7 +202,8 @@ class ChatOrchestratorServiceTest {
                 ollamaService,
                 mcpService,
                 new ChatToolRouterService(),
-                new ChatMemoryService(sessionStore)
+                new ChatMemoryService(sessionStore),
+                new ChatPromptBuilder(new ObjectMapper())
         );
 
         ChatResponse clarification = orchestrator.chat("read the latest report", "llama3:8b", null);
@@ -215,7 +223,8 @@ class ChatOrchestratorServiceTest {
                 ollamaService,
                 new FakeMcpService(),
                 new ChatToolRouterService(),
-                new ChatMemoryService(sessionStore)
+                new ChatMemoryService(sessionStore),
+                new ChatPromptBuilder(new ObjectMapper())
         );
 
         ChatResponse clarification = orchestrator.chat("check bucket metrics for the last 7 days", "llama3:8b", null);
@@ -233,7 +242,8 @@ class ChatOrchestratorServiceTest {
                 new FakeOllamaService(),
                 new FakeMcpService(),
                 new ChatToolRouterService(),
-                new ChatMemoryService(sessionStore)
+                new ChatMemoryService(sessionStore),
+                new ChatPromptBuilder(new ObjectMapper())
         );
 
         ChatOrchestratorService.PreparedChat preparedChat = orchestrator.prepareChat("explain recursion", "llama3:8b", null);
