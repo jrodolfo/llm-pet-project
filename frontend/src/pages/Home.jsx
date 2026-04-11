@@ -158,6 +158,7 @@ function Home() {
                   disabled={loading}
                 >
                   <span className="session-title">{session.title}</span>
+                  {session.summary ? <span className="session-summary">{session.summary}</span> : null}
                   <span className="session-meta">{new Date(session.updatedAt).toLocaleString()}</span>
                 </button>
                 <button

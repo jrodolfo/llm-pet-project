@@ -14,9 +14,11 @@ import java.util.UUID;
 public class ChatMemoryService {
 
     private final FileChatSessionStore sessionStore;
+    private final ChatSessionMetadataService chatSessionMetadataService;
 
-    public ChatMemoryService(FileChatSessionStore sessionStore) {
+    public ChatMemoryService(FileChatSessionStore sessionStore, ChatSessionMetadataService chatSessionMetadataService) {
         this.sessionStore = sessionStore;
+        this.chatSessionMetadataService = chatSessionMetadataService;
     }
 
     public ChatSession startTurn(String requestedSessionId, String requestedModel, String resolvedModel, String userMessage) {
@@ -45,7 +47,7 @@ public class ChatMemoryService {
         ChatSession updatedSession = session
                 .withPendingToolCall(pendingToolCall)
                 .appendMessage("assistant", assistantMessage, toolMetadata, Instant.now());
-        return sessionStore.save(updatedSession);
+        return sessionStore.save(chatSessionMetadataService.enrich(updatedSession));
     }
 
     public List<ChatSessionMessage> historyBeforeLatestUserMessage(ChatSession session) {

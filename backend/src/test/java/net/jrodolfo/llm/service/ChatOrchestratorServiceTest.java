@@ -209,9 +209,9 @@ class ChatOrchestratorServiceTest {
                 ollamaService,
                 mcpService,
                 new ChatToolRouterService(),
-                new ChatMemoryService(sessionStore),
+                new ChatMemoryService(sessionStore, new ChatSessionMetadataService()),
                 new ChatPromptBuilder(new ObjectMapper()),
-                new ChatSessionService(sessionStore)
+                new ChatSessionService(sessionStore, new ChatSessionMetadataService())
         );
     }
 

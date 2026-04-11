@@ -7,6 +7,7 @@ import net.jrodolfo.llm.dto.ChatToolMetadata;
 import net.jrodolfo.llm.model.ChatSession;
 import net.jrodolfo.llm.model.PendingToolCall;
 import net.jrodolfo.llm.service.ChatToolRouterService;
+import net.jrodolfo.llm.service.ChatSessionMetadataService;
 import net.jrodolfo.llm.service.ChatSessionService;
 import net.jrodolfo.llm.service.FileChatSessionStore;
 import org.junit.jupiter.api.BeforeEach;
@@ -38,7 +39,7 @@ class SessionControllerTest {
         ObjectMapper objectMapper = new ObjectMapper();
         objectMapper.registerModule(new JavaTimeModule());
         sessionStore = new FileChatSessionStore(objectMapper, new AppStorageProperties(tempDir.resolve("sessions").toString()));
-        ChatSessionService sessionService = new ChatSessionService(sessionStore);
+        ChatSessionService sessionService = new ChatSessionService(sessionStore, new ChatSessionMetadataService());
 
         mockMvc = MockMvcBuilders
                 .standaloneSetup(new SessionController(sessionService))
@@ -55,6 +56,7 @@ class SessionControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].sessionId").value("newer-session"))
                 .andExpect(jsonPath("$[0].title").value("newer question"))
+                .andExpect(jsonPath("$[0].summary").value("done"))
                 .andExpect(jsonPath("$[1].sessionId").value("older-session"));
     }
 
@@ -65,6 +67,7 @@ class SessionControllerTest {
         mockMvc.perform(get("/api/sessions/session-1"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.sessionId").value("session-1"))
+                .andExpect(jsonPath("$.summary").value("done"))
                 .andExpect(jsonPath("$.messages[0].role").value("user"))
                 .andExpect(jsonPath("$.messages[1].tool.name").value("aws_region_audit"));
     }
@@ -130,7 +133,9 @@ class SessionControllerTest {
                                 timestamp.plusSeconds(30)
                         )
                 ),
-                pendingToolCall
+                pendingToolCall,
+                null,
+                null
         );
         sessionStore.save(session);
     }

@@ -127,6 +127,7 @@ The UI now includes a local session sidebar where you can:
 - reopen a saved session
 - delete a saved session
 - see when a chat is waiting for missing tool input, such as a bucket name
+- browse automatically generated session titles and summaries
 
 ## 4. Run the Local MCP Server
 
@@ -208,6 +209,7 @@ Compose uses `host.docker.internal:11434` so backend container can reach host Ol
 - Conversation history is stored locally as JSON files under [`data/sessions/`](./data/sessions).
 - The frontend reuses the returned `sessionId` automatically so follow-up prompts keep local context.
 - Session titles in the sidebar are derived from the first user message in each stored session.
+- Session summaries are generated locally from the saved conversation so the sidebar is easier to scan.
 - The backend can use session memory to complete tool clarifications across turns, for example asking for a missing bucket name and using your next reply to run the pending tool call.
 
 ## Notes for 70B Models

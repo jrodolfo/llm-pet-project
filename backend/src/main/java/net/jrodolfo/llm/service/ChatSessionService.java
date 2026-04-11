@@ -15,12 +15,12 @@ import java.util.List;
 @Service
 public class ChatSessionService {
 
-    private static final int TITLE_MAX_LENGTH = 60;
-
     private final FileChatSessionStore sessionStore;
+    private final ChatSessionMetadataService chatSessionMetadataService;
 
-    public ChatSessionService(FileChatSessionStore sessionStore) {
+    public ChatSessionService(FileChatSessionStore sessionStore, ChatSessionMetadataService chatSessionMetadataService) {
         this.sessionStore = sessionStore;
+        this.chatSessionMetadataService = chatSessionMetadataService;
     }
 
     public List<ChatSessionSummaryResponse> listSessions() {
@@ -45,7 +45,8 @@ public class ChatSessionService {
     private ChatSessionSummaryResponse toSummary(ChatSession session) {
         return new ChatSessionSummaryResponse(
                 session.sessionId(),
-                deriveTitle(session),
+                chatSessionMetadataService.fallbackTitle(session),
+                chatSessionMetadataService.fallbackSummary(session),
                 session.model(),
                 session.createdAt(),
                 session.updatedAt(),
@@ -56,7 +57,8 @@ public class ChatSessionService {
     private ChatSessionDetailResponse toDetail(ChatSession session) {
         return new ChatSessionDetailResponse(
                 session.sessionId(),
-                deriveTitle(session),
+                chatSessionMetadataService.fallbackTitle(session),
+                chatSessionMetadataService.fallbackSummary(session),
                 session.model(),
                 session.createdAt(),
                 session.updatedAt(),
@@ -84,26 +86,6 @@ public class ChatSessionService {
                 pendingToolCall.reason(),
                 pendingToolCall.missingFields()
         );
-    }
-
-    private String deriveTitle(ChatSession session) {
-        return session.messages().stream()
-                .filter(message -> "user".equals(message.role()))
-                .map(ChatSessionMessage::content)
-                .findFirst()
-                .map(this::normalizeTitle)
-                .orElse("New chat");
-    }
-
-    private String normalizeTitle(String content) {
-        String normalized = content == null ? "" : content.trim().replaceAll("\\s+", " ");
-        if (normalized.isBlank()) {
-            return "New chat";
-        }
-        if (normalized.length() <= TITLE_MAX_LENGTH) {
-            return normalized;
-        }
-        return normalized.substring(0, TITLE_MAX_LENGTH - 1) + "…";
     }
 
     private String toolNameForDecision(ChatToolRouterService.DecisionType type) {

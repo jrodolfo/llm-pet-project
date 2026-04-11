@@ -21,7 +21,7 @@ class ChatMemoryServiceTest {
 
     @Test
     void startAndFinishTurnPersistSessionMessages() {
-        ChatMemoryService memoryService = new ChatMemoryService(newSessionStore());
+        ChatMemoryService memoryService = new ChatMemoryService(newSessionStore(), new ChatSessionMetadataService());
 
         ChatSession started = memoryService.startTurn(null, "llama3:8b", "llama3:8b", "hello");
         ChatSession finished = memoryService.finishTurn(
@@ -35,12 +35,14 @@ class ChatMemoryServiceTest {
         assertEquals("user", finished.messages().get(0).role());
         assertEquals("assistant", finished.messages().get(1).role());
         assertEquals("list_recent_reports", finished.messages().get(1).tool().name());
+        assertEquals("hello", finished.title());
+        assertEquals("hi there", finished.summary());
         assertTrue(tempDir.resolve("sessions").resolve(finished.sessionId() + ".json").toFile().exists());
     }
 
     @Test
     void historyBeforeLatestUserMessageExcludesCurrentPrompt() {
-        ChatMemoryService memoryService = new ChatMemoryService(newSessionStore());
+        ChatMemoryService memoryService = new ChatMemoryService(newSessionStore(), new ChatSessionMetadataService());
 
         ChatSession firstTurn = memoryService.finishTurn(
                 memoryService.startTurn("session-1", "llama3:8b", "llama3:8b", "first"),

@@ -88,6 +88,15 @@
   color: #0f172a;
 }
 
+.session-summary {
+  font-size: 0.84rem;
+  color: #475569;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
 .session-meta {
   font-size: 0.8rem;
   color: #64748b;
