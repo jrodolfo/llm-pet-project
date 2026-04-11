@@ -21,7 +21,7 @@ public class ChatOrchestratorService {
 
     private final ChatModelProvider chatModelProvider;
     private final McpService mcpService;
-    private final ChatToolRouterService toolRouterService;
+    private final ToolDecisionService toolDecisionService;
     private final ChatMemoryService chatMemoryService;
     private final ChatPromptBuilder chatPromptBuilder;
     private final ChatSessionService chatSessionService;
@@ -29,14 +29,14 @@ public class ChatOrchestratorService {
     public ChatOrchestratorService(
             ChatModelProvider chatModelProvider,
             McpService mcpService,
-            ChatToolRouterService toolRouterService,
+            ToolDecisionService toolDecisionService,
             ChatMemoryService chatMemoryService,
             ChatPromptBuilder chatPromptBuilder,
             ChatSessionService chatSessionService
     ) {
         this.chatModelProvider = chatModelProvider;
         this.mcpService = mcpService;
-        this.toolRouterService = toolRouterService;
+        this.toolDecisionService = toolDecisionService;
         this.chatMemoryService = chatMemoryService;
         this.chatPromptBuilder = chatPromptBuilder;
         this.chatSessionService = chatSessionService;
@@ -61,8 +61,8 @@ public class ChatOrchestratorService {
     public PreparedChat prepareChat(String message, String model, String sessionId) {
         String resolvedModel = chatModelProvider.resolveModel(model);
         ChatSession session = chatMemoryService.startTurn(sessionId, model, resolvedModel, message);
-        ChatToolRouterService.ToolDecision routedDecision = toolRouterService.route(message);
-        ChatToolRouterService.ToolDecision decision = resolveDecision(session, message, routedDecision);
+        ChatToolRouterService.ToolDecision routedDecision = toolDecisionService.route(message, resolvedModel);
+        ChatToolRouterService.ToolDecision decision = resolveDecision(session, message, resolvedModel, routedDecision);
         if (decision.needsClarification()) {
             ChatToolMetadata metadata = new ChatToolMetadata(
                     true,
@@ -135,13 +135,14 @@ public class ChatOrchestratorService {
     private ChatToolRouterService.ToolDecision resolveDecision(
             ChatSession session,
             String message,
+            String model,
             ChatToolRouterService.ToolDecision routedDecision
     ) {
         if (session.pendingToolCall() == null) {
             return routedDecision;
         }
 
-        ChatToolRouterService.ToolDecision pendingDecision = toolRouterService.resolvePending(session.pendingToolCall(), message);
+        ChatToolRouterService.ToolDecision pendingDecision = toolDecisionService.resolvePending(session.pendingToolCall(), message, model);
         if (pendingDecision.shouldUseTool()) {
             return pendingDecision;
         }

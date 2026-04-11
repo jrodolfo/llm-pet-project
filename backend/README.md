@@ -62,6 +62,7 @@ Relevant environment variables:
 
 - `APP_MODEL_PROVIDER` default: `ollama`
 - `OLLAMA_DEFAULT_MODEL` default: `llama3:8b`
+- `APP_TOOLS_ROUTING_MODE` default: `hybrid`
 - `MCP_ENABLED`
 - `MCP_COMMAND` default: `node`
 - `MCP_WORKING_DIRECTORY` default: `../mcp`
@@ -77,6 +78,7 @@ The backend exposes a small local session API so the frontend can list, reopen, 
 It also keeps pending tool clarification state in the session so a short follow-up reply can complete a previously blocked tool request.
 That pending state can also be surfaced in the chat UI as an informational hint.
 Session files also store generated local `title` and `summary` metadata for easier sidebar browsing.
+Tool routing can run in `rules`, `llm`, or `hybrid` mode, with `hybrid` using the LLM planner first and falling back to the rule-based router when the planner output is invalid.
 
 Relevant environment variable:
 

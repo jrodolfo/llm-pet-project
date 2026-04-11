@@ -8,6 +8,8 @@ server:
 app:
   model:
     provider: ${APP_MODEL_PROVIDER:ollama}
+  tools:
+    routing-mode: ${APP_TOOLS_ROUTING_MODE:hybrid}
   storage:
     sessions-directory: ${APP_STORAGE_SESSIONS_DIRECTORY:../data/sessions}
 

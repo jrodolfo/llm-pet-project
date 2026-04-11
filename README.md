@@ -194,6 +194,7 @@ Compose uses `host.docker.internal:11434` so backend container can reach host Ol
 - `OLLAMA_CONNECT_TIMEOUT_SECONDS` (default: `10`)
 - `OLLAMA_READ_TIMEOUT_SECONDS` (default: `240`)
 - `APP_MODEL_PROVIDER` (default: `ollama`)
+- `APP_TOOLS_ROUTING_MODE` (default: `hybrid`)
 - `MCP_ENABLED` (default: `false`)
 - `MCP_COMMAND` (default: `node`)
 - `MCP_WORKING_DIRECTORY` (default: `../mcp`)
@@ -206,6 +207,7 @@ Compose uses `host.docker.internal:11434` so backend container can reach host Ol
 
 - The default chat flow does not require MCP.
 - The backend now uses a model-provider abstraction and currently ships with the `ollama` provider.
+- Tool routing is now LLM-assisted by default in `hybrid` mode, with the older rule-based router kept as a fallback.
 - The backend can call MCP tools only when `MCP_ENABLED=true`.
 - The MCP server uses local `stdio` transport and is designed for private, local execution.
 - The `scripts/reports/` tree contains generated local artifacts and is intentionally reused by both the shell tools and the MCP wrappers.

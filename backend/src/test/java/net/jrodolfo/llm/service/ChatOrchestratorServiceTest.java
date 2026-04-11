@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import net.jrodolfo.llm.client.McpClient;
 import net.jrodolfo.llm.client.McpClientException;
+import net.jrodolfo.llm.config.AppToolsProperties;
 import net.jrodolfo.llm.config.AppStorageProperties;
 import net.jrodolfo.llm.config.McpProperties;
 import net.jrodolfo.llm.dto.AwsRegionAuditToolRequest;
@@ -36,7 +37,7 @@ class ChatOrchestratorServiceTest {
     void noToolRequestFallsBackToRegularChatAndPersistsSession() {
         FakeChatModelProvider chatModelProvider = new FakeChatModelProvider();
         FileChatSessionStore sessionStore = newSessionStore();
-        ChatOrchestratorService orchestrator = newOrchestrator(chatModelProvider, new FakeMcpService(), sessionStore);
+        ChatOrchestratorService orchestrator = newOrchestrator(chatModelProvider, new FakeMcpService(), sessionStore, "rules");
 
         ChatResponse response = orchestrator.chat("explain recursion", "llama3:8b", null);
 
@@ -55,7 +56,7 @@ class ChatOrchestratorServiceTest {
     void followUpRequestIncludesConversationHistory() {
         FakeChatModelProvider chatModelProvider = new FakeChatModelProvider();
         FileChatSessionStore sessionStore = newSessionStore();
-        ChatOrchestratorService orchestrator = newOrchestrator(chatModelProvider, new FakeMcpService(), sessionStore);
+        ChatOrchestratorService orchestrator = newOrchestrator(chatModelProvider, new FakeMcpService(), sessionStore, "rules");
 
         ChatResponse firstResponse = orchestrator.chat("explain recursion", "llama3:8b", null);
         ChatResponse secondResponse = orchestrator.chat("give me an example", "llama3:8b", firstResponse.sessionId());
@@ -70,7 +71,7 @@ class ChatOrchestratorServiceTest {
     void auditRequestUsesToolAddsMetadataAndPersistsAssistantToolState() {
         FakeChatModelProvider chatModelProvider = new FakeChatModelProvider();
         FileChatSessionStore sessionStore = newSessionStore();
-        ChatOrchestratorService orchestrator = newOrchestrator(chatModelProvider, new FakeMcpService(), sessionStore);
+        ChatOrchestratorService orchestrator = newOrchestrator(chatModelProvider, new FakeMcpService(), sessionStore, "rules");
 
         ChatResponse response = orchestrator.chat("run aws audit for us-east-2 sts", "llama3:8b", null);
 
@@ -88,7 +89,7 @@ class ChatOrchestratorServiceTest {
     void toolFailureReturnsExplicitFailureResponseAndPersistsIt() {
         FakeChatModelProvider chatModelProvider = new FakeChatModelProvider();
         FileChatSessionStore sessionStore = newSessionStore();
-        ChatOrchestratorService orchestrator = newOrchestrator(chatModelProvider, new ErrorMcpService(), sessionStore);
+        ChatOrchestratorService orchestrator = newOrchestrator(chatModelProvider, new ErrorMcpService(), sessionStore, "rules");
 
         ChatResponse response = orchestrator.chat("run aws audit for us-east-2 sts", "llama3:8b", null);
 
@@ -105,7 +106,7 @@ class ChatOrchestratorServiceTest {
     void clarificationRequestReturnsImmediateClarificationResponse() {
         FakeChatModelProvider chatModelProvider = new FakeChatModelProvider();
         FileChatSessionStore sessionStore = newSessionStore();
-        ChatOrchestratorService orchestrator = newOrchestrator(chatModelProvider, new FakeMcpService(), sessionStore);
+        ChatOrchestratorService orchestrator = newOrchestrator(chatModelProvider, new FakeMcpService(), sessionStore, "rules");
 
         ChatResponse response = orchestrator.chat("check bucket metrics for the last 7 days", "llama3:8b", null);
 
@@ -123,7 +124,7 @@ class ChatOrchestratorServiceTest {
     void ambiguousLatestReportRequestReturnsClarificationResponse() {
         FakeChatModelProvider chatModelProvider = new FakeChatModelProvider();
         FileChatSessionStore sessionStore = newSessionStore();
-        ChatOrchestratorService orchestrator = newOrchestrator(chatModelProvider, new FakeMcpService(), sessionStore);
+        ChatOrchestratorService orchestrator = newOrchestrator(chatModelProvider, new FakeMcpService(), sessionStore, "rules");
 
         ChatResponse response = orchestrator.chat("read the latest report", "llama3:8b", null);
 
@@ -141,7 +142,7 @@ class ChatOrchestratorServiceTest {
         FakeChatModelProvider chatModelProvider = new FakeChatModelProvider();
         FileChatSessionStore sessionStore = newSessionStore();
         FakeMcpService mcpService = new FakeMcpService();
-        ChatOrchestratorService orchestrator = newOrchestrator(chatModelProvider, mcpService, sessionStore);
+        ChatOrchestratorService orchestrator = newOrchestrator(chatModelProvider, mcpService, sessionStore, "rules");
 
         ChatResponse clarification = orchestrator.chat("check bucket metrics for the last 7 days", "llama3:8b", null);
         ChatResponse followUp = orchestrator.chat("jrodolfo.net", "llama3:8b", clarification.sessionId());
@@ -157,7 +158,7 @@ class ChatOrchestratorServiceTest {
         FakeChatModelProvider chatModelProvider = new FakeChatModelProvider();
         FileChatSessionStore sessionStore = newSessionStore();
         FakeMcpService mcpService = new FakeMcpService();
-        ChatOrchestratorService orchestrator = newOrchestrator(chatModelProvider, mcpService, sessionStore);
+        ChatOrchestratorService orchestrator = newOrchestrator(chatModelProvider, mcpService, sessionStore, "rules");
 
         ChatResponse clarification = orchestrator.chat("read the latest report", "llama3:8b", null);
         ChatResponse followUp = orchestrator.chat("audit", "llama3:8b", clarification.sessionId());
@@ -172,7 +173,7 @@ class ChatOrchestratorServiceTest {
     void unrelatedFollowUpFallsBackToRegularChat() {
         FakeChatModelProvider chatModelProvider = new FakeChatModelProvider();
         FileChatSessionStore sessionStore = newSessionStore();
-        ChatOrchestratorService orchestrator = newOrchestrator(chatModelProvider, new FakeMcpService(), sessionStore);
+        ChatOrchestratorService orchestrator = newOrchestrator(chatModelProvider, new FakeMcpService(), sessionStore, "rules");
 
         ChatResponse clarification = orchestrator.chat("check bucket metrics for the last 7 days", "llama3:8b", null);
         ChatResponse followUp = orchestrator.chat("explain recursion", "llama3:8b", clarification.sessionId());
@@ -185,7 +186,7 @@ class ChatOrchestratorServiceTest {
     @Test
     void completePreparedChatPersistsStreamedAssistantResponse() {
         FileChatSessionStore sessionStore = newSessionStore();
-        ChatOrchestratorService orchestrator = newOrchestrator(new FakeChatModelProvider(), new FakeMcpService(), sessionStore);
+        ChatOrchestratorService orchestrator = newOrchestrator(new FakeChatModelProvider(), new FakeMcpService(), sessionStore, "rules");
 
         ChatOrchestratorService.PreparedChat preparedChat = orchestrator.prepareChat("explain recursion", "llama3:8b", null);
         var persistedSession = orchestrator.completePreparedChat(preparedChat, "streamed response");
@@ -193,6 +194,86 @@ class ChatOrchestratorServiceTest {
         assertEquals(2, persistedSession.messages().size());
         assertEquals("streamed response", persistedSession.messages().get(1).content());
         assertEquals(persistedSession.sessionId(), sessionStore.findById(persistedSession.sessionId()).orElseThrow().sessionId());
+    }
+
+    @Test
+    void hybridModeUsesPlannerDecisionWhenItReturnsValidToolJson() {
+        FakeChatModelProvider chatModelProvider = new FakeChatModelProvider();
+        chatModelProvider.nextPlannerResponse = """
+                {
+                  "action": "use_tool",
+                  "toolName": "aws_region_audit",
+                  "arguments": {
+                    "region": "us-east-2",
+                    "services": ["sts"]
+                  },
+                  "missingFields": [],
+                  "reason": "User explicitly asked for an AWS audit."
+                }
+                """;
+        FileChatSessionStore sessionStore = newSessionStore();
+        ChatOrchestratorService orchestrator = newOrchestrator(chatModelProvider, new FakeMcpService(), sessionStore, "hybrid");
+
+        ChatResponse response = orchestrator.chat("please audit my aws account in us-east-2 with sts", "llama3:8b", null);
+
+        assertNotNull(response.tool());
+        assertEquals("aws_region_audit", response.tool().name());
+        assertEquals(1, chatModelProvider.plannerCalls);
+        assertTrue(chatModelProvider.lastPrompt.contains("tool_name: aws_region_audit"));
+    }
+
+    @Test
+    void hybridModeFallsBackToRulesWhenPlannerOutputIsMalformed() {
+        FakeChatModelProvider chatModelProvider = new FakeChatModelProvider();
+        chatModelProvider.nextPlannerResponse = "not valid json";
+        FileChatSessionStore sessionStore = newSessionStore();
+        FakeMcpService mcpService = new FakeMcpService();
+        ChatOrchestratorService orchestrator = newOrchestrator(chatModelProvider, mcpService, sessionStore, "hybrid");
+
+        ChatResponse response = orchestrator.chat("run aws audit for us-east-2 sts", "llama3:8b", null);
+
+        assertNotNull(response.tool());
+        assertEquals("aws_region_audit", response.tool().name());
+        assertEquals(1, chatModelProvider.plannerCalls);
+    }
+
+    @Test
+    void hybridModeUsesPlannerForPendingClarificationFollowUp() {
+        FakeChatModelProvider chatModelProvider = new FakeChatModelProvider();
+        chatModelProvider.nextPlannerResponse = """
+                {
+                  "action": "clarification_needed",
+                  "toolName": "s3_cloudwatch_report",
+                  "arguments": {
+                    "days": 7
+                  },
+                  "missingFields": ["bucket"],
+                  "reason": "Bucket metrics request missing the bucket name."
+                }
+                """;
+        FileChatSessionStore sessionStore = newSessionStore();
+        FakeMcpService mcpService = new FakeMcpService();
+        ChatOrchestratorService orchestrator = newOrchestrator(chatModelProvider, mcpService, sessionStore, "hybrid");
+
+        ChatResponse clarification = orchestrator.chat("check s3 cloudwatch metrics for the last 7 days", "llama3:8b", null);
+        chatModelProvider.nextPlannerResponse = """
+                {
+                  "action": "use_tool",
+                  "toolName": "s3_cloudwatch_report",
+                  "arguments": {
+                    "bucket": "jrodolfo.net",
+                    "days": 7
+                  },
+                  "missingFields": [],
+                  "reason": "Follow-up provides the missing bucket."
+                }
+                """;
+
+        ChatResponse followUp = orchestrator.chat("jrodolfo.net", "llama3:8b", clarification.sessionId());
+
+        assertEquals("jrodolfo.net", mcpService.lastS3Request.bucket());
+        assertEquals("success", followUp.tool().status());
+        assertEquals(3, chatModelProvider.plannerCalls);
     }
 
     private FileChatSessionStore newSessionStore() {
@@ -204,14 +285,20 @@ class ChatOrchestratorServiceTest {
     private ChatOrchestratorService newOrchestrator(
             ChatModelProvider chatModelProvider,
             McpService mcpService,
-            FileChatSessionStore sessionStore
+            FileChatSessionStore sessionStore,
+            String routingMode
     ) {
+        ObjectMapper objectMapper = new ObjectMapper();
         return new ChatOrchestratorService(
                 chatModelProvider,
                 mcpService,
-                new ChatToolRouterService(),
+                new ToolDecisionService(
+                        new AppToolsProperties(routingMode),
+                        new LlmToolPlannerService(chatModelProvider, objectMapper),
+                        new ChatToolRouterService()
+                ),
                 new ChatMemoryService(sessionStore, new ChatSessionMetadataService()),
-                new ChatPromptBuilder(new ObjectMapper()),
+                new ChatPromptBuilder(objectMapper),
                 new ChatSessionService(sessionStore, new ChatSessionMetadataService())
         );
     }
@@ -219,6 +306,8 @@ class ChatOrchestratorServiceTest {
     private static final class FakeChatModelProvider implements ChatModelProvider {
         private String lastPrompt;
         private boolean generateCalled;
+        private String nextPlannerResponse;
+        private int plannerCalls;
 
         @Override
         public ChatResponse chat(
@@ -228,6 +317,14 @@ class ChatOrchestratorServiceTest {
                 String sessionId,
                 net.jrodolfo.llm.dto.PendingToolCallResponse pendingTool
         ) {
+            if (message.contains("<tool_planning_request>")) {
+                this.plannerCalls++;
+                String plannerResponse = nextPlannerResponse != null
+                        ? nextPlannerResponse
+                        : "{\"action\":\"none\",\"toolName\":null,\"arguments\":{},\"missingFields\":[],\"reason\":\"No supported tool is required.\"}";
+                this.nextPlannerResponse = null;
+                return new ChatResponse(plannerResponse, resolveModel(model), null, null, null);
+            }
             this.lastPrompt = message;
             this.generateCalled = true;
             return new ChatResponse("plain response", resolveModel(model), toolMetadata, sessionId, pendingTool);
