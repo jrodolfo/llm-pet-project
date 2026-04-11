@@ -195,6 +195,7 @@ Compose uses `host.docker.internal:11434` so backend container can reach host Ol
 - `OLLAMA_READ_TIMEOUT_SECONDS` (default: `240`)
 - `APP_MODEL_PROVIDER` (default: `ollama`)
 - `APP_TOOLS_ROUTING_MODE` (default: `hybrid`)
+- `APP_TOOLS_LOG_PLANNER` (default: `false`)
 - `MCP_ENABLED` (default: `false`)
 - `MCP_COMMAND` (default: `node`)
 - `MCP_WORKING_DIRECTORY` (default: `../mcp`)
@@ -208,6 +209,7 @@ Compose uses `host.docker.internal:11434` so backend container can reach host Ol
 - The default chat flow does not require MCP.
 - The backend now uses a model-provider abstraction and currently ships with the `ollama` provider.
 - Tool routing is now LLM-assisted by default in `hybrid` mode, with the older rule-based router kept as a fallback.
+- Set `APP_TOOLS_LOG_PLANNER=true` to log raw planner output, parsed planner decisions, and fallback usage during local evaluation.
 - The backend can call MCP tools only when `MCP_ENABLED=true`.
 - The MCP server uses local `stdio` transport and is designed for private, local execution.
 - The `scripts/reports/` tree contains generated local artifacts and is intentionally reused by both the shell tools and the MCP wrappers.
@@ -216,6 +218,7 @@ Compose uses `host.docker.internal:11434` so backend container can reach host Ol
 - Session titles in the sidebar are derived from the first user message in each stored session.
 - Session summaries are generated locally from the saved conversation so the sidebar is easier to scan.
 - The backend can use session memory to complete tool clarifications across turns, for example asking for a missing bucket name and using your next reply to run the pending tool call.
+- Fixture-based planner evaluation cases live in [`backend/src/test/resources/tool-decision-evaluation-fixtures.json`](/Users/jrodolfo/workspace/ai/llm/llm-pet-project/backend/src/test/resources/tool-decision-evaluation-fixtures.json).
 
 ## Notes for 70B Models
 

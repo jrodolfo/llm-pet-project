@@ -293,7 +293,7 @@ class ChatOrchestratorServiceTest {
                 chatModelProvider,
                 mcpService,
                 new ToolDecisionService(
-                        new AppToolsProperties(routingMode),
+                        new AppToolsProperties(routingMode, false),
                         new LlmToolPlannerService(chatModelProvider, objectMapper),
                         new ChatToolRouterService()
                 ),

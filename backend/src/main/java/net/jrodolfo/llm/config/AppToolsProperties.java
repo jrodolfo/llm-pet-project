@@ -4,6 +4,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 
 @ConfigurationProperties(prefix = "app.tools")
 public record AppToolsProperties(
-        String routingMode
+        String routingMode,
+        boolean logPlanner
 ) {
 }

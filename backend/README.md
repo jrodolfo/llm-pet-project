@@ -63,6 +63,7 @@ Relevant environment variables:
 - `APP_MODEL_PROVIDER` default: `ollama`
 - `OLLAMA_DEFAULT_MODEL` default: `llama3:8b`
 - `APP_TOOLS_ROUTING_MODE` default: `hybrid`
+- `APP_TOOLS_LOG_PLANNER` default: `false`
 - `MCP_ENABLED`
 - `MCP_COMMAND` default: `node`
 - `MCP_WORKING_DIRECTORY` default: `../mcp`
@@ -79,6 +80,7 @@ It also keeps pending tool clarification state in the session so a short follow-
 That pending state can also be surfaced in the chat UI as an informational hint.
 Session files also store generated local `title` and `summary` metadata for easier sidebar browsing.
 Tool routing can run in `rules`, `llm`, or `hybrid` mode, with `hybrid` using the LLM planner first and falling back to the rule-based router when the planner output is invalid.
+Set `APP_TOOLS_LOG_PLANNER=true` to log raw planner output, parsed decisions, and fallback usage while tuning the planner locally.
 
 Relevant environment variable:
 

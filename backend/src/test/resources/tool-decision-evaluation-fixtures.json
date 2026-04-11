@@ -1,0 +1,63 @@
+[
+  {
+    "name": "planner routes aws audit request",
+    "mode": "hybrid",
+    "message": "please audit my aws account in us-east-2 with sts",
+    "plannerResponse": "{\"action\":\"use_tool\",\"toolName\":\"aws_region_audit\",\"arguments\":{\"region\":\"us-east-2\",\"services\":[\"sts\"]},\"missingFields\":[],\"reason\":\"The user explicitly asked for an AWS audit.\"}",
+    "expectedType": "AWS_REGION_AUDIT",
+    "expectedUseTool": true,
+    "expectedClarification": false,
+    "expectedFallbackUsed": false,
+    "expectedRegion": "us-east-2",
+    "expectedServices": ["sts"]
+  },
+  {
+    "name": "planner asks for bucket clarification",
+    "mode": "hybrid",
+    "message": "check s3 cloudwatch metrics for the last 7 days",
+    "plannerResponse": "{\"action\":\"clarification_needed\",\"toolName\":\"s3_cloudwatch_report\",\"arguments\":{\"days\":7},\"missingFields\":[\"bucket\"],\"reason\":\"Bucket metrics request is missing the bucket name.\"}",
+    "expectedType": "S3_CLOUDWATCH_REPORT",
+    "expectedUseTool": false,
+    "expectedClarification": true,
+    "expectedFallbackUsed": false
+  },
+  {
+    "name": "malformed planner output falls back to rules",
+    "mode": "hybrid",
+    "message": "run aws audit for us-east-2 sts",
+    "plannerResponse": "not valid json",
+    "expectedType": "AWS_REGION_AUDIT",
+    "expectedUseTool": true,
+    "expectedClarification": false,
+    "expectedFallbackUsed": true,
+    "expectedRegion": "us-east-2",
+    "expectedServices": ["sts"]
+  },
+  {
+    "name": "planner keeps normal chat as none",
+    "mode": "hybrid",
+    "message": "explain recursion using a simple example",
+    "plannerResponse": "{\"action\":\"none\",\"toolName\":null,\"arguments\":{},\"missingFields\":[],\"reason\":\"No tool is needed.\"}",
+    "expectedType": "NONE",
+    "expectedUseTool": false,
+    "expectedClarification": false,
+    "expectedFallbackUsed": false
+  },
+  {
+    "name": "pending follow-up resolves missing bucket",
+    "mode": "hybrid",
+    "message": "jrodolfo.net",
+    "plannerResponse": "{\"action\":\"use_tool\",\"toolName\":\"s3_cloudwatch_report\",\"arguments\":{\"bucket\":\"jrodolfo.net\",\"days\":7},\"missingFields\":[],\"reason\":\"The follow-up provides the missing bucket.\"}",
+    "pendingTool": {
+      "type": "S3_CLOUDWATCH_REPORT",
+      "reason": "s3 cloudwatch metrics request",
+      "days": 7,
+      "missingFields": ["bucket"]
+    },
+    "expectedType": "S3_CLOUDWATCH_REPORT",
+    "expectedUseTool": true,
+    "expectedClarification": false,
+    "expectedFallbackUsed": false,
+    "expectedBucket": "jrodolfo.net"
+  }
+]

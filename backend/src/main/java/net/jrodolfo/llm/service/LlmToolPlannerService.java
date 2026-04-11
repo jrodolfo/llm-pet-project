@@ -33,6 +33,10 @@ public class LlmToolPlannerService {
     }
 
     public Optional<ChatToolRouterService.ToolDecision> plan(String message, String model) {
+        return planDetailed(message, model).parsedDecision();
+    }
+
+    public PlanningResult planDetailed(String message, String model) {
         String plannerPrompt = """
                 <tool_planning_request>
                 You are a routing planner for a local chat application.
@@ -81,10 +85,14 @@ public class LlmToolPlannerService {
                 """.formatted(String.join(", ", AUDIT_SERVICES), message.trim());
 
         String rawResponse = chatModelProvider.chat(plannerPrompt, model, null, null, null).response();
-        return parseDecision(rawResponse);
+        return new PlanningResult(rawResponse, parseDecision(rawResponse));
     }
 
     public Optional<ChatToolRouterService.ToolDecision> resolvePending(PendingToolCall pendingToolCall, String message, String model) {
+        return resolvePendingDetailed(pendingToolCall, message, model).parsedDecision();
+    }
+
+    public PlanningResult resolvePendingDetailed(PendingToolCall pendingToolCall, String message, String model) {
         String plannerPrompt = """
                 <tool_planning_request>
                 You are resolving a follow-up message for a pending tool request.
@@ -146,7 +154,7 @@ public class LlmToolPlannerService {
         );
 
         String rawResponse = chatModelProvider.chat(plannerPrompt, model, null, null, null).response();
-        return parseDecision(rawResponse);
+        return new PlanningResult(rawResponse, parseDecision(rawResponse));
     }
 
     private Optional<ChatToolRouterService.ToolDecision> parseDecision(String rawResponse) {
@@ -315,5 +323,11 @@ public class LlmToolPlannerService {
 
     private String normalizedReason(String reason) {
         return reason == null ? "llm tool planning decision" : reason;
+    }
+
+    public record PlanningResult(
+            String rawResponse,
+            Optional<ChatToolRouterService.ToolDecision> parsedDecision
+    ) {
     }
 }
