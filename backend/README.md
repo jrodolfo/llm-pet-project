@@ -152,6 +152,6 @@ Set `APP_TOOLS_LOG_PLANNER=true` to log raw planner output, parsed decisions, an
 ## Notes
 
 - normal chat responses can include provider metadata
-- streamed replies can emit final provider metadata before `[DONE]`
+- streamed replies use typed JSON SSE events: `start`, `delta`, and `complete`
 - reopened sessions can preserve tool metadata, provider metadata, and structured tool results
 - artifact preview access is read-only and constrained to the configured reports directory

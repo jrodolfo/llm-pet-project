@@ -218,8 +218,9 @@ describe('Home', () => {
   });
 
   it('renders streamed provenance before tokens complete', async () => {
-    streamMessage.mockImplementation(async ({ onMetadata, onToken }) => {
-      onMetadata({
+    streamMessage.mockImplementation(async ({ onEvent }) => {
+      onEvent({
+        type: 'start',
         sessionId: 'session-123',
         pendingTool: {
           toolName: 'read_report_summary',
@@ -234,9 +235,10 @@ describe('Home', () => {
         },
         metadata: null
       });
-      onToken('Latest ');
-      onToken('report ready.');
-      onMetadata({
+      onEvent({ type: 'delta', text: 'Latest ' });
+      onEvent({ type: 'delta', text: 'report ready.' });
+      onEvent({
+        type: 'complete',
         sessionId: 'session-123',
         pendingTool: {
           toolName: 'read_report_summary',

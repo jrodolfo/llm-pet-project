@@ -62,57 +62,57 @@ describe('chatApi', () => {
     expect(result.toolResult.type).toBe('audit_summary');
   });
 
-  it('streams metadata before tokens', async () => {
+  it('streams typed json chat events', async () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(
       createStreamResponse([
-        'event: metadata\ndata: {"sessionId":"session-123","tool":{"used":true,"name":"aws_region_audit","status":"success","summary":"done"},"toolResult":{"type":"audit_summary","successCount":10,"failureCount":0},"pendingTool":{"toolName":"s3_cloudwatch_report","reason":"s3 cloudwatch metrics request","missingFields":["bucket"]},"metadata":null}\n\n',
-        'data: Hello\n\n',
-        'data:world\n\n',
-        'event: metadata\ndata: {"sessionId":"session-123","tool":{"used":true,"name":"aws_region_audit","status":"success","summary":"done"},"pendingTool":null,"metadata":{"provider":"bedrock","modelId":"amazon.nova-lite-v1:0","totalTokens":46,"durationMs":412}}\n\n',
-        'data:[DONE]\n\n'
+        'event: chat\ndata: {"type":"start","sessionId":"session-123","tool":{"used":true,"name":"aws_region_audit","status":"success","summary":"done"},"toolResult":{"type":"audit_summary","successCount":10,"failureCount":0},"pendingTool":{"toolName":"s3_cloudwatch_report","reason":"s3 cloudwatch metrics request","missingFields":["bucket"]},"metadata":null}\n\n',
+        'event: chat\ndata: {"type":"delta","text":" Hello"}\n\n',
+        'event: chat\ndata: {"type":"delta","text":"world"}\n\n',
+        'event: chat\ndata: {"type":"complete","sessionId":"session-123","tool":{"used":true,"name":"aws_region_audit","status":"success","summary":"done"},"pendingTool":null,"metadata":{"provider":"bedrock","modelId":"amazon.nova-lite-v1:0","totalTokens":46,"durationMs":412}}\n\n'
       ])
     );
 
-    const tokens = [];
-    const metadataEvents = [];
+    const events = [];
 
     await streamMessage({
       message: 'run audit',
       model: 'llama3:8b',
-      onMetadata: (payload) => metadataEvents.push(payload),
-      onToken: (token) => tokens.push(token)
+      onEvent: (event) => events.push(event)
     });
 
-    expect(metadataEvents).toHaveLength(2);
-    expect(metadataEvents[0].sessionId).toBe('session-123');
-    expect(metadataEvents[0].tool.name).toBe('aws_region_audit');
-    expect(metadataEvents[0].toolResult.type).toBe('audit_summary');
-    expect(metadataEvents[0].pendingTool.toolName).toBe('s3_cloudwatch_report');
-    expect(metadataEvents[1].metadata.provider).toBe('bedrock');
-    expect(metadataEvents[1].metadata.totalTokens).toBe(46);
-    expect(tokens).toEqual([' Hello', 'world']);
+    expect(events).toHaveLength(4);
+    expect(events[0].type).toBe('start');
+    expect(events[0].sessionId).toBe('session-123');
+    expect(events[0].tool.name).toBe('aws_region_audit');
+    expect(events[0].toolResult.type).toBe('audit_summary');
+    expect(events[0].pendingTool.toolName).toBe('s3_cloudwatch_report');
+    expect(events[1]).toEqual({ type: 'delta', text: ' Hello' });
+    expect(events[2]).toEqual({ type: 'delta', text: 'world' });
+    expect(events[3].type).toBe('complete');
+    expect(events[3].metadata.provider).toBe('bedrock');
+    expect(events[3].metadata.totalTokens).toBe(46);
   });
 
-  it('ignores invalid metadata payloads safely', async () => {
+  it('ignores invalid event payloads safely', async () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(
       createStreamResponse([
-        'event: metadata\ndata: not-json\n\n',
-        'data:Hello\n\n',
-        'data:[DONE]\n\n'
+        'event: chat\ndata: not-json\n\n',
+        'event: chat\ndata: {"type":"delta","text":"Hello"}\n\n',
+        'event: chat\ndata: {"type":"complete"}\n\n'
       ])
     );
 
-    const metadataEvents = [];
-    const tokens = [];
+    const events = [];
 
     await streamMessage({
       message: 'run audit',
       model: 'llama3:8b',
-      onMetadata: (payload) => metadataEvents.push(payload),
-      onToken: (token) => tokens.push(token)
+      onEvent: (event) => events.push(event)
     });
 
-    expect(metadataEvents).toEqual([]);
-    expect(tokens).toEqual(['Hello']);
+    expect(events).toEqual([
+      { type: 'delta', text: 'Hello' },
+      { type: 'complete' }
+    ]);
   });
 });

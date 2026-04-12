@@ -152,6 +152,7 @@ The storage defaults are resolved from the project root so they stay stable whet
 - Ollama as the default provider
 - Amazon Bedrock as an optional provider
 - provider metadata in responses and saved session history
+- typed JSON SSE events for streaming chat
 
 ### Sessions
 

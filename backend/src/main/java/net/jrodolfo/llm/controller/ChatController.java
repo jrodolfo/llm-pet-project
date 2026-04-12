@@ -12,7 +12,7 @@ import net.jrodolfo.llm.client.ModelProviderException;
 import net.jrodolfo.llm.client.OllamaClientException;
 import net.jrodolfo.llm.dto.ChatRequest;
 import net.jrodolfo.llm.dto.ChatResponse;
-import net.jrodolfo.llm.dto.ChatStreamMetadata;
+import net.jrodolfo.llm.dto.ChatStreamEvent;
 import net.jrodolfo.llm.provider.ChatModelProvider;
 import net.jrodolfo.llm.service.ChatOrchestratorService;
 import net.jrodolfo.llm.service.InvalidSessionIdException;
@@ -64,14 +64,14 @@ public class ChatController {
     @PostMapping(value = "/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     @Operation(
             summary = "Run a streaming chat request",
-            description = "Streams Server-Sent Events. The stream emits a `metadata` event before token events begin, then token `data` events, and finally `[DONE]`. A final `metadata` event can be emitted with provider details before completion."
+            description = "Streams Server-Sent Events using a typed JSON envelope. The stream emits `chat` events with `type=start`, zero or more `type=delta` chunks, and a final `type=complete` event."
     )
     @ApiResponses({
             @ApiResponse(
                     responseCode = "200",
                     description = "SSE stream started successfully.",
                     content = @Content(mediaType = MediaType.TEXT_EVENT_STREAM_VALUE,
-                            examples = @ExampleObject(value = "event: metadata\\ndata: {\"sessionId\":\"session-123\"}\\n\\ndata: Hello\\n\\ndata: [DONE]\\n\\n"))
+                            examples = @ExampleObject(value = "event: chat\\ndata: {\"type\":\"start\",\"sessionId\":\"session-123\"}\\n\\nevent: chat\\ndata: {\"type\":\"delta\",\"text\":\"Hello\"}\\n\\nevent: chat\\ndata: {\"type\":\"complete\",\"sessionId\":\"session-123\"}\\n\\n"))
             ),
             @ApiResponse(responseCode = "400", description = "Invalid request body."),
             @ApiResponse(responseCode = "502", description = "Provider or MCP integration failed.")
@@ -87,7 +87,7 @@ public class ChatController {
                         request.sessionId()
                 );
 
-                sendMetadata(emitter, new ChatStreamMetadata(
+                sendEvent(emitter, ChatStreamEvent.start(
                         preparedChat.immediateResponse() != null ? preparedChat.immediateResponse().sessionId() : preparedChat.session().sessionId(),
                         preparedChat.toolMetadata(),
                         preparedChat.toolResult(),
@@ -96,8 +96,14 @@ public class ChatController {
                 ));
 
                 if (preparedChat.immediateResponse() != null) {
-                    sendData(emitter, preparedChat.immediateResponse().response());
-                    sendData(emitter, "[DONE]");
+                    sendEvent(emitter, ChatStreamEvent.delta(preparedChat.immediateResponse().response()));
+                    sendEvent(emitter, ChatStreamEvent.complete(
+                            preparedChat.immediateResponse().sessionId(),
+                            preparedChat.immediateResponse().tool(),
+                            preparedChat.immediateResponse().toolResult(),
+                            preparedChat.immediateResponse().pendingTool(),
+                            preparedChat.immediateResponse().metadata()
+                    ));
                     emitter.complete();
                     return;
                 }
@@ -105,18 +111,17 @@ public class ChatController {
                 StringBuilder responseBuffer = new StringBuilder();
                 var streamingResult = chatModelProvider.streamChat(preparedChat.prompt(), preparedChat.model(), token -> {
                     responseBuffer.append(token);
-                    sendData(emitter, token);
+                    sendEvent(emitter, ChatStreamEvent.delta(token));
                 });
                 var providerMetadata = streamingResult.completion().join();
                 chatOrchestratorService.completePreparedChat(preparedChat, responseBuffer.toString(), providerMetadata);
-                sendMetadata(emitter, new ChatStreamMetadata(
+                sendEvent(emitter, ChatStreamEvent.complete(
                         preparedChat.session().sessionId(),
                         preparedChat.toolMetadata(),
                         preparedChat.toolResult(),
                         preparedChat.pendingTool(),
                         providerMetadata
                 ));
-                sendData(emitter, "[DONE]");
                 emitter.complete();
             } catch (Exception ex) {
                 emitter.completeWithError(ex);
@@ -147,21 +152,13 @@ public class ChatController {
                 .body(Map.of("error", ex.getMessage()));
     }
 
-    private void sendData(SseEmitter emitter, String token) {
-        try {
-            emitter.send(SseEmitter.event().data(token));
-        } catch (IOException ex) {
-            throw new OllamaClientException("Failed to stream token to client.", ex);
-        }
-    }
-
-    private void sendMetadata(SseEmitter emitter, ChatStreamMetadata metadata) {
+    private void sendEvent(SseEmitter emitter, ChatStreamEvent event) {
         try {
             emitter.send(SseEmitter.event()
-                    .name("metadata")
-                    .data(objectMapper.writeValueAsString(metadata)));
+                    .name("chat")
+                    .data(objectMapper.writeValueAsString(event)));
         } catch (IOException ex) {
-            throw new OllamaClientException("Failed to stream metadata to client.", ex);
+            throw new OllamaClientException("Failed to stream chat event to client.", ex);
         }
     }
 }

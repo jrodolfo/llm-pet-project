@@ -248,17 +248,21 @@ function Home() {
           message,
           model,
           sessionId,
-          onMetadata: (metadata) => {
-            setSessionId((current) => metadata?.sessionId || current);
-            setPendingTool(metadata?.pendingTool || null);
-            updateLastAssistantDetails({
-              tool: metadata?.tool || null,
-              toolResult: metadata?.toolResult || null,
-              metadata: metadata?.metadata || null
-            });
-          },
-          onToken: (token) => {
-            updateLastAssistant((current) => current + token);
+          onEvent: (event) => {
+            if (event.type === 'start' || event.type === 'complete') {
+              setSessionId((current) => event?.sessionId || current);
+              setPendingTool(event?.pendingTool || null);
+              updateLastAssistantDetails({
+                tool: event?.tool || null,
+                toolResult: event?.toolResult || null,
+                metadata: event?.metadata || null
+              });
+              return;
+            }
+
+            if (event.type === 'delta') {
+              updateLastAssistant((current) => current + (event.text || ''));
+            }
           }
         });
         await loadSessions({

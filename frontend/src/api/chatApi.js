@@ -17,7 +17,7 @@ export async function sendMessage({ message, model, sessionId }) {
   return response.json();
 }
 
-export async function streamMessage({ message, model, sessionId, onToken, onMetadata }) {
+export async function streamMessage({ message, model, sessionId, onEvent }) {
   const response = await fetch('/api/chat/stream', {
     method: 'POST',
     headers: JSON_HEADERS,
@@ -53,18 +53,13 @@ export async function streamMessage({ message, model, sessionId, onToken, onMeta
         continue;
       }
 
-      if (event.type === 'metadata') {
-        if (onMetadata) {
-          onMetadata(event.data);
-        }
-        continue;
+      if (onEvent) {
+        onEvent(event);
       }
 
-      if (event.data.trim() === '[DONE]') {
+      if (event.type === 'complete') {
         return;
       }
-
-      onToken(event.data);
     }
   }
 }
@@ -88,15 +83,15 @@ function parseSseEvent(chunk) {
   }
 
   const payload = dataLines.join('\n');
-  if (eventName === 'metadata') {
-    try {
-      return { type: 'metadata', data: JSON.parse(payload) };
-    } catch {
-      return null;
-    }
+  if (eventName !== 'chat') {
+    return null;
   }
 
-  return { type: 'message', data: payload };
+  try {
+    return JSON.parse(payload);
+  } catch {
+    return null;
+  }
 }
 
 async function safeParseJson(response) {
