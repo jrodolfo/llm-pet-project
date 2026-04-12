@@ -1,0 +1,28 @@
+package net.jrodolfo.llm.config;
+
+import io.swagger.v3.oas.models.OpenAPI;
+import io.swagger.v3.oas.models.info.Contact;
+import io.swagger.v3.oas.models.info.Info;
+import io.swagger.v3.oas.models.info.License;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+
+@Configuration
+public class OpenApiConfig {
+
+    @Bean
+    public OpenAPI llmPetProjectOpenApi() {
+        return new OpenAPI()
+                .info(new Info()
+                        .title("LLM Pet Project API")
+                        .description("Spring Boot API for chat, sessions, local artifacts, and optional MCP-backed AWS tooling.")
+                        .version("v1")
+                        .contact(new Contact()
+                                .name("Rod Oliveira")
+                                .url("https://jrodolfo.net")
+                                .email("jrodolfo@gmail.com"))
+                        .license(new License()
+                                .name("MIT")
+                                .url("https://opensource.org/licenses/MIT")));
+    }
+}

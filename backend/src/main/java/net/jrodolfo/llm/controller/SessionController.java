@@ -1,5 +1,11 @@
 package net.jrodolfo.llm.controller;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import net.jrodolfo.llm.dto.ChatSessionDetailResponse;
 import net.jrodolfo.llm.dto.ChatSessionImportResponse;
 import net.jrodolfo.llm.dto.ChatSessionSummaryResponse;
@@ -27,6 +33,7 @@ import java.nio.charset.StandardCharsets;
 
 @RestController
 @RequestMapping("/api/sessions")
+@Tag(name = "sessions", description = "Local JSON-backed conversation sessions, import/export, and filtering.")
 public class SessionController {
 
     private final ChatSessionService chatSessionService;
@@ -44,11 +51,17 @@ public class SessionController {
     }
 
     @GetMapping
+    @Operation(summary = "List stored chat sessions", description = "Returns local session summaries filtered by optional text query, provider, tool usage, and pending clarification state.")
     public List<ChatSessionSummaryResponse> listSessions(
+            @Parameter(description = "Text query matched against session title, summary, and message content.")
             @RequestParam(required = false) String query,
+            @Parameter(description = "Legacy alias for `query`. Frontend uses `query`.")
             @RequestParam(required = false) String q,
+            @Parameter(description = "Optional provider filter.", example = "bedrock")
             @RequestParam(required = false) String provider,
+            @Parameter(description = "Optional tool usage filter: `used` or `unused`.", example = "used")
             @RequestParam(required = false) String toolUsage,
+            @Parameter(description = "Optional pending clarification filter.", example = "true")
             @RequestParam(required = false) Boolean pending
     ) {
         return chatSessionService.listSessions(
@@ -60,13 +73,20 @@ public class SessionController {
     }
 
     @GetMapping("/{sessionId}")
+    @Operation(summary = "Get a stored chat session", description = "Loads one saved session with full messages, tool data, provider metadata, and pending clarification state.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Session found."),
+            @ApiResponse(responseCode = "404", description = "Session not found.")
+    })
     public ChatSessionDetailResponse getSession(@PathVariable String sessionId) {
         return chatSessionService.getSession(sessionId);
     }
 
     @GetMapping("/{sessionId}/export")
+    @Operation(summary = "Export a stored chat session", description = "Returns the saved session as JSON by default, or Markdown when `format=markdown` or `format=md`.")
     public ResponseEntity<?> exportSession(
             @PathVariable String sessionId,
+            @Parameter(description = "Export format: `json` (default), `markdown`, or `md`.")
             @RequestParam(defaultValue = "json") String format
     ) {
         ChatSessionDetailResponse session = chatSessionService.getSession(sessionId);
@@ -84,22 +104,34 @@ public class SessionController {
     }
 
     @DeleteMapping("/{sessionId}")
+    @Operation(summary = "Delete a stored chat session")
+    @ApiResponses({
+            @ApiResponse(responseCode = "204", description = "Session deleted."),
+            @ApiResponse(responseCode = "404", description = "Session not found.")
+    })
     public ResponseEntity<Void> deleteSession(@PathVariable String sessionId) {
         chatSessionService.deleteSession(sessionId);
         return ResponseEntity.noContent().build();
     }
 
     @PostMapping("/import")
+    @Operation(summary = "Import a JSON chat session export", description = "Accepts a JSON session export produced by this app. If the imported `sessionId` already exists locally, a new identifier is generated instead of overwriting.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Session imported."),
+            @ApiResponse(responseCode = "400", description = "Invalid import payload.")
+    })
     public ChatSessionImportResponse importSession(@RequestParam("file") MultipartFile file) {
         return chatSessionImportService.importSession(file);
     }
 
     @ExceptionHandler(ChatSessionNotFoundException.class)
+    @Operation(hidden = true)
     public ResponseEntity<Map<String, String>> handleChatSessionNotFound(ChatSessionNotFoundException ex) {
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("error", ex.getMessage()));
     }
 
     @ExceptionHandler(ChatSessionImportException.class)
+    @Operation(hidden = true)
     public ResponseEntity<Map<String, String>> handleChatSessionImport(ChatSessionImportException ex) {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("error", ex.getMessage()));
     }

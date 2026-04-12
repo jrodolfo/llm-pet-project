@@ -71,6 +71,11 @@ mvn spring-boot:run
 
 Backend runs on `http://localhost:8080`.
 
+OpenAPI and Swagger UI:
+
+- `http://localhost:8080/v3/api-docs`
+- `http://localhost:8080/swagger-ui/index.html`
+
 ### Backend API
 
 `POST /api/chat`

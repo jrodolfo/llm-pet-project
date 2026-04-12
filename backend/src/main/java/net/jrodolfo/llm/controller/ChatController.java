@@ -1,6 +1,13 @@
 package net.jrodolfo.llm.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.ExampleObject;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import net.jrodolfo.llm.client.ModelProviderException;
 import net.jrodolfo.llm.client.OllamaClientException;
 import net.jrodolfo.llm.dto.ChatRequest;
@@ -25,6 +32,7 @@ import java.util.concurrent.CompletableFuture;
 
 @RestController
 @RequestMapping("/api/chat")
+@Tag(name = "chat", description = "Normal and streaming chat endpoints.")
 public class ChatController {
 
     private final ChatOrchestratorService chatOrchestratorService;
@@ -42,11 +50,31 @@ public class ChatController {
     }
 
     @PostMapping
+    @Operation(summary = "Run a non-streaming chat request", description = "Routes the request through the active provider, optionally using local MCP-backed tools before the model call.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Chat response returned successfully."),
+            @ApiResponse(responseCode = "400", description = "Invalid request body."),
+            @ApiResponse(responseCode = "502", description = "Provider or MCP integration failed.")
+    })
     public ChatResponse chat(@Valid @RequestBody ChatRequest request) {
         return chatOrchestratorService.chat(request.message(), request.model(), request.sessionId());
     }
 
     @PostMapping(value = "/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    @Operation(
+            summary = "Run a streaming chat request",
+            description = "Streams Server-Sent Events. The stream emits a `metadata` event before token events begin, then token `data` events, and finally `[DONE]`. A final `metadata` event can be emitted with provider details before completion."
+    )
+    @ApiResponses({
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "SSE stream started successfully.",
+                    content = @Content(mediaType = MediaType.TEXT_EVENT_STREAM_VALUE,
+                            examples = @ExampleObject(value = "event: metadata\\ndata: {\"sessionId\":\"session-123\"}\\n\\ndata: Hello\\n\\ndata: [DONE]\\n\\n"))
+            ),
+            @ApiResponse(responseCode = "400", description = "Invalid request body."),
+            @ApiResponse(responseCode = "502", description = "Provider or MCP integration failed.")
+    })
     public SseEmitter stream(@Valid @RequestBody ChatRequest request) {
         SseEmitter emitter = new SseEmitter(0L);
 
@@ -97,12 +125,14 @@ public class ChatController {
     }
 
     @ExceptionHandler(OllamaClientException.class)
+    @Operation(hidden = true)
     public ResponseEntity<Map<String, String>> handleOllamaError(OllamaClientException ex) {
         return ResponseEntity.status(HttpStatus.BAD_GATEWAY)
                 .body(Map.of("error", ex.getMessage()));
     }
 
     @ExceptionHandler(ModelProviderException.class)
+    @Operation(hidden = true)
     public ResponseEntity<Map<String, String>> handleModelProviderError(ModelProviderException ex) {
         return ResponseEntity.status(HttpStatus.BAD_GATEWAY)
                 .body(Map.of("error", ex.getMessage()));

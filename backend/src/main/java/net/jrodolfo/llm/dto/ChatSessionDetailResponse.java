@@ -1,8 +1,11 @@
 package net.jrodolfo.llm.dto;
 
+import io.swagger.v3.oas.annotations.media.Schema;
+
 import java.time.Instant;
 import java.util.List;
 
+@Schema(description = "Detailed session payload used when reopening a saved conversation.")
 public record ChatSessionDetailResponse(
         String sessionId,
         String title,

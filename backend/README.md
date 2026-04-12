@@ -15,6 +15,11 @@ Spring Boot API that routes chat through a model-provider abstraction, supports 
 mvn spring-boot:run
 ```
 
+## OpenAPI
+
+- `http://localhost:8080/v3/api-docs`
+- `http://localhost:8080/swagger-ui/index.html`
+
 ## Endpoints
 
 - `POST /api/chat`

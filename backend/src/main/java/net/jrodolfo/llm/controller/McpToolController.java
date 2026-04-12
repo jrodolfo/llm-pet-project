@@ -1,5 +1,10 @@
 package net.jrodolfo.llm.controller;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import net.jrodolfo.llm.client.McpClientException;
 import net.jrodolfo.llm.dto.AwsRegionAuditToolRequest;
 import net.jrodolfo.llm.dto.ListReportsRequest;
@@ -28,6 +33,7 @@ import java.util.Map;
 @RestController
 @Validated
 @RequestMapping("/api/tools")
+@Tag(name = "tools", description = "Optional local MCP-backed AWS audit and report tooling.")
 public class McpToolController {
 
     private final McpService mcpService;
@@ -37,36 +43,44 @@ public class McpToolController {
     }
 
     @GetMapping
+    @Operation(summary = "List available MCP tools", description = "Returns the locally configured MCP tools exposed through the backend.")
     public McpToolListResponse listTools() {
         return mcpService.listTools();
     }
 
     @PostMapping("/aws-region-audit")
+    @Operation(summary = "Run the AWS regional audit tool", description = "Invokes the local MCP-backed AWS regional audit shell workflow.")
     public McpToolInvocationResponse runAwsRegionAudit(@Valid @RequestBody AwsRegionAuditToolRequest request) {
         return mcpService.runAwsRegionAudit(request);
     }
 
     @PostMapping("/s3-cloudwatch-report")
+    @Operation(summary = "Run the S3 CloudWatch report tool", description = "Invokes the local MCP-backed S3 CloudWatch shell workflow.")
     public McpToolInvocationResponse runS3CloudwatchReport(@Valid @RequestBody S3CloudwatchReportToolRequest request) {
         return mcpService.runS3CloudwatchReport(request);
     }
 
     @GetMapping("/reports")
+    @Operation(summary = "List recent report directories", description = "Lists recent audit or S3 CloudWatch report directories under the local reports tree.")
     public McpToolInvocationResponse listRecentReports(
+            @Parameter(description = "Optional report type filter: `audit`, `s3_cloudwatch`, or `all`.", example = "all")
             @RequestParam(required = false)
             @Pattern(regexp = "audit|s3_cloudwatch|all", message = "reportType must be audit, s3_cloudwatch, or all")
             String reportType,
+            @Parameter(description = "Maximum number of reports to return, between 1 and 20.", example = "5")
             @RequestParam(required = false) @Min(1) @Max(20) Integer limit
     ) {
         return mcpService.listRecentReports(new ListReportsRequest(reportType, limit));
     }
 
     @PostMapping("/reports/read")
+    @Operation(summary = "Read a report summary bundle", description = "Reads a report bundle under the local reports tree and returns summary data plus a short text preview.")
     public McpToolInvocationResponse readReportSummary(@Valid @RequestBody ReadReportSummaryToolRequest request) {
         return mcpService.readReportSummary(request);
     }
 
     @ExceptionHandler(McpClientException.class)
+    @Operation(hidden = true)
     public ResponseEntity<Map<String, String>> handleMcpError(McpClientException ex) {
         HttpStatus status = "MCP integration is disabled.".equals(ex.getMessage())
                 ? HttpStatus.SERVICE_UNAVAILABLE
@@ -77,6 +91,7 @@ public class McpToolController {
     }
 
     @ExceptionHandler(IllegalArgumentException.class)
+    @Operation(hidden = true)
     public ResponseEntity<Map<String, String>> handleInvalidInput(IllegalArgumentException ex) {
         return ResponseEntity.badRequest()
                 .body(Map.of("error", ex.getMessage()));
