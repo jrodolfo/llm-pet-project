@@ -35,8 +35,8 @@ function Home() {
     window.localStorage.setItem(DEBUG_MODE_STORAGE_KEY, String(showTechnicalDetails));
   }, [showTechnicalDetails]);
 
-  const addMessage = (role, content, tool = null, metadata = null) => {
-    setMessages((current) => [...current, { id: crypto.randomUUID(), role, content, tool, metadata }]);
+  const addMessage = (role, content, tool = null, toolResult = null, metadata = null) => {
+    setMessages((current) => [...current, { id: crypto.randomUUID(), role, content, tool, toolResult, metadata }]);
   };
 
   const updateLastAssistant = (updater) => {
@@ -50,7 +50,7 @@ function Home() {
     );
   };
 
-  const updateLastAssistantDetails = ({ tool, metadata }) => {
+  const updateLastAssistantDetails = ({ tool, toolResult, metadata }) => {
     setMessages((current) =>
       current.map((message, index) => {
         if (index !== current.length - 1 || message.role !== 'assistant') {
@@ -59,6 +59,7 @@ function Home() {
         return {
           ...message,
           tool: tool ?? message.tool,
+          toolResult: toolResult ?? message.toolResult,
           metadata: metadata ?? message.metadata
         };
       })
@@ -119,6 +120,7 @@ function Home() {
           role: message.role,
           content: message.content,
           tool: message.tool || null,
+          toolResult: message.toolResult || null,
           metadata: message.metadata || null
         }))
       );
@@ -175,7 +177,7 @@ function Home() {
         const payload = await sendMessage({ message, model, sessionId });
         setSessionId((current) => payload.sessionId || current);
         setPendingTool(payload.pendingTool || null);
-        addMessage('assistant', payload.response || '(No response)', payload.tool || null, payload.metadata || null);
+        addMessage('assistant', payload.response || '(No response)', payload.tool || null, payload.toolResult || null, payload.metadata || null);
         await loadSessions(sessionSearch);
       } else {
         addMessage('assistant', '');
@@ -186,7 +188,11 @@ function Home() {
           onMetadata: (metadata) => {
             setSessionId((current) => metadata?.sessionId || current);
             setPendingTool(metadata?.pendingTool || null);
-            updateLastAssistantDetails({ tool: metadata?.tool || null, metadata: metadata?.metadata || null });
+            updateLastAssistantDetails({
+              tool: metadata?.tool || null,
+              toolResult: metadata?.toolResult || null,
+              metadata: metadata?.metadata || null
+            });
           },
           onToken: (token) => {
             updateLastAssistant((current) => current + token);

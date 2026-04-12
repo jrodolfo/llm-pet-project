@@ -9,6 +9,7 @@ import org.springframework.stereotype.Service;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @Service
@@ -32,23 +33,24 @@ public class ChatMemoryService {
                 .map(session -> session.withUpdatedModel(resolvedModel))
                 .orElseGet(() -> ChatSession.create(sessionId, resolvedModel, now));
 
-        return existingSession.appendMessage("user", userMessage.trim(), null, null, now);
+        return existingSession.appendMessage("user", userMessage.trim(), null, null, null, now);
     }
 
     public ChatSession finishTurn(ChatSession session, String assistantMessage, ChatToolMetadata toolMetadata) {
-        return finishTurn(session, assistantMessage, toolMetadata, null, session.pendingToolCall());
+        return finishTurn(session, assistantMessage, toolMetadata, null, null, session.pendingToolCall());
     }
 
     public ChatSession finishTurn(
             ChatSession session,
             String assistantMessage,
             ChatToolMetadata toolMetadata,
+            Map<String, Object> toolResult,
             ModelProviderMetadata providerMetadata,
             PendingToolCall pendingToolCall
     ) {
         ChatSession updatedSession = session
                 .withPendingToolCall(pendingToolCall)
-                .appendMessage("assistant", assistantMessage, toolMetadata, providerMetadata, Instant.now());
+                .appendMessage("assistant", assistantMessage, toolMetadata, toolResult, providerMetadata, Instant.now());
         return sessionStore.save(chatSessionMetadataService.enrich(updatedSession));
     }
 

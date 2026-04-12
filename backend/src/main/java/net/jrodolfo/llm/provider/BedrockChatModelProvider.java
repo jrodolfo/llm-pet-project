@@ -9,6 +9,7 @@ import net.jrodolfo.llm.dto.ChatToolMetadata;
 import net.jrodolfo.llm.dto.ModelProviderMetadata;
 import net.jrodolfo.llm.dto.PendingToolCallResponse;
 
+import java.util.Map;
 import java.util.function.Consumer;
 
 public class BedrockChatModelProvider implements ChatModelProvider {
@@ -26,13 +27,14 @@ public class BedrockChatModelProvider implements ChatModelProvider {
             String message,
             String model,
             ChatToolMetadata toolMetadata,
+            Map<String, Object> toolResult,
             String sessionId,
             PendingToolCallResponse pendingTool
     ) {
         String normalizedMessage = message.trim();
         String resolvedModel = resolveModel(model);
         ModelProviderReply reply = bedrockRuntimeGateway.converse(normalizedMessage, resolvedModel);
-        return new ChatResponse(reply.text(), resolvedModel, toolMetadata, sessionId, pendingTool, reply.metadata());
+        return new ChatResponse(reply.text(), resolvedModel, toolMetadata, toolResult, sessionId, pendingTool, reply.metadata());
     }
 
     @Override

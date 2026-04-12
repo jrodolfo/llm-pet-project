@@ -241,6 +241,30 @@
   color: #475569;
 }
 
+.tool-result-card {
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px dashed #dbe2ea;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.82rem;
+  color: #334155;
+}
+
+.tool-result-title {
+  font-weight: 600;
+  text-transform: lowercase;
+}
+
+.tool-result-item {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding-left: 8px;
+  border-left: 2px solid #dbeafe;
+}
+
 .provider-metadata {
   margin-top: 10px;
   padding-top: 8px;

@@ -39,6 +39,11 @@ describe('chatApi', () => {
           reason: 's3 cloudwatch metrics request',
           missingFields: ['bucket']
         },
+        toolResult: {
+          type: 'audit_summary',
+          successCount: 10,
+          failureCount: 0
+        },
         tool: {
           used: true,
           name: 'aws_region_audit'
@@ -54,12 +59,13 @@ describe('chatApi', () => {
     expect(result.metadata.totalTokens).toBe(46);
     expect(result.pendingTool.toolName).toBe('s3_cloudwatch_report');
     expect(result.tool.name).toBe('aws_region_audit');
+    expect(result.toolResult.type).toBe('audit_summary');
   });
 
   it('streams metadata before tokens', async () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(
       createStreamResponse([
-        'event: metadata\ndata: {"sessionId":"session-123","tool":{"used":true,"name":"aws_region_audit","status":"success","summary":"done"},"pendingTool":{"toolName":"s3_cloudwatch_report","reason":"s3 cloudwatch metrics request","missingFields":["bucket"]},"metadata":null}\n\n',
+        'event: metadata\ndata: {"sessionId":"session-123","tool":{"used":true,"name":"aws_region_audit","status":"success","summary":"done"},"toolResult":{"type":"audit_summary","successCount":10,"failureCount":0},"pendingTool":{"toolName":"s3_cloudwatch_report","reason":"s3 cloudwatch metrics request","missingFields":["bucket"]},"metadata":null}\n\n',
         'data: Hello\n\n',
         'data:world\n\n',
         'event: metadata\ndata: {"sessionId":"session-123","tool":{"used":true,"name":"aws_region_audit","status":"success","summary":"done"},"pendingTool":null,"metadata":{"provider":"bedrock","modelId":"amazon.nova-lite-v1:0","totalTokens":46,"durationMs":412}}\n\n',
@@ -80,6 +86,7 @@ describe('chatApi', () => {
     expect(metadataEvents).toHaveLength(2);
     expect(metadataEvents[0].sessionId).toBe('session-123');
     expect(metadataEvents[0].tool.name).toBe('aws_region_audit');
+    expect(metadataEvents[0].toolResult.type).toBe('audit_summary');
     expect(metadataEvents[0].pendingTool.toolName).toBe('s3_cloudwatch_report');
     expect(metadataEvents[1].metadata.provider).toBe('bedrock');
     expect(metadataEvents[1].metadata.totalTokens).toBe(46);

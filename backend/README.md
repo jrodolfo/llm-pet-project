@@ -43,6 +43,7 @@ mvn spring-boot:run
 The backend returns the active `sessionId` in chat responses so the frontend can continue the same local conversation.
 Normal chat responses also include optional provider metadata. For Bedrock, that metadata includes stop reason, token counts, total duration, and Bedrock latency when the runtime returns them.
 Streaming chat emits `metadata` SSE events at the start of the stream and can emit a final `metadata` event with provider details before `[DONE]`.
+Supported MCP-backed tool executions can also attach a compact structured `toolResult` payload so the frontend can render report-oriented results as cards instead of only plain text.
 
 ## Local MCP Integration
 
@@ -90,6 +91,7 @@ It also supports JSON import through `POST /api/sessions/import`. If the importe
 It also keeps pending tool clarification state in the session so a short follow-up reply can complete a previously blocked tool request.
 That pending state can also be surfaced in the chat UI as an informational hint.
 Session files also store generated local `title` and `summary` metadata for easier sidebar browsing.
+Assistant messages can also persist structured `toolResult` data so reopened sessions keep the same report-oriented UI rendering.
 Tool routing can run in `rules`, `llm`, or `hybrid` mode, with `hybrid` using the LLM planner first and falling back to the rule-based router when the planner output is invalid.
 Set `APP_TOOLS_LOG_PLANNER=true` to log raw planner output, parsed decisions, and fallback usage while tuning the planner locally.
 The backend test suite includes a fixture-driven planner evaluation pass and prints a compact summary of tool-use, clarification, and fallback cases.

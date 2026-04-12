@@ -17,6 +17,7 @@ function ChatWindow({ messages, showTechnicalDetails }) {
           role={message.role}
           content={message.content}
           tool={message.tool}
+          toolResult={message.toolResult}
           metadata={message.metadata}
           showTechnicalDetails={showTechnicalDetails}
         />

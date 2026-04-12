@@ -5,6 +5,7 @@ import net.jrodolfo.llm.dto.ChatToolMetadata;
 import net.jrodolfo.llm.dto.ModelProviderMetadata;
 import net.jrodolfo.llm.dto.PendingToolCallResponse;
 
+import java.util.Map;
 import java.util.function.Consumer;
 
 public interface ChatModelProvider {
@@ -13,6 +14,7 @@ public interface ChatModelProvider {
             String message,
             String model,
             ChatToolMetadata toolMetadata,
+            Map<String, Object> toolResult,
             String sessionId,
             PendingToolCallResponse pendingTool
     );

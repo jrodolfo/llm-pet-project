@@ -1,7 +1,10 @@
-function MessageBubble({ role, content, tool, metadata, showTechnicalDetails = false }) {
+import ToolResultCard from './ToolResultCard';
+
+function MessageBubble({ role, content, tool, toolResult, metadata, showTechnicalDetails = false }) {
   const isUser = role === 'user';
   const showTool = !isUser && tool?.used;
   const showMetadata = !isUser && showTechnicalDetails && metadata && (metadata.provider || metadata.modelId);
+  const showToolResult = !isUser && toolResult?.type;
 
   return (
     <div className={`message-row ${isUser ? 'user' : 'assistant'}`}>
@@ -14,6 +17,7 @@ function MessageBubble({ role, content, tool, metadata, showTechnicalDetails = f
             {tool.summary ? <span>{tool.summary}</span> : null}
           </div>
         ) : null}
+        {showToolResult ? <ToolResultCard toolResult={toolResult} /> : null}
         {showMetadata ? (
           <div className="provider-metadata">
             <span className="provider-metadata-title">technical details</span>

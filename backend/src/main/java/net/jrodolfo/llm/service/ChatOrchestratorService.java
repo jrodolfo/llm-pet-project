@@ -51,6 +51,7 @@ public class ChatOrchestratorService {
                 preparedChat.prompt(),
                 preparedChat.model(),
                 preparedChat.toolMetadata(),
+                preparedChat.toolResult(),
                 preparedChat.session().sessionId(),
                 preparedChat.pendingTool()
         );
@@ -58,6 +59,7 @@ public class ChatOrchestratorService {
                 preparedChat.session(),
                 response.response(),
                 response.tool(),
+                response.toolResult(),
                 response.metadata(),
                 preparedChat.session().pendingToolCall()
         );
@@ -77,11 +79,12 @@ public class ChatOrchestratorService {
                     decision.clarification()
             );
             PendingToolCall pendingToolCall = pendingToolCallForDecision(decision);
-            ChatSession persistedSession = chatMemoryService.finishTurn(session, decision.clarification(), metadata, null, pendingToolCall);
+            ChatSession persistedSession = chatMemoryService.finishTurn(session, decision.clarification(), metadata, null, null, pendingToolCall);
             return PreparedChat.forImmediateResponse(new ChatResponse(
                     decision.clarification(),
                     resolvedModel,
                     metadata,
+                    null,
                     persistedSession.sessionId(),
                     toPendingToolResponse(pendingToolCall),
                     null
@@ -90,7 +93,7 @@ public class ChatOrchestratorService {
 
         if (!decision.shouldUseTool()) {
             ChatSession clearedSession = session.withPendingToolCall(null);
-            return PreparedChat.forPrompt(buildConversationPrompt(clearedSession, message, null), resolvedModel, null, clearedSession);
+            return PreparedChat.forPrompt(buildConversationPrompt(clearedSession, message, null), resolvedModel, null, null, clearedSession);
         }
 
         try {
@@ -107,7 +110,7 @@ public class ChatOrchestratorService {
                     )
             );
             ChatToolMetadata metadata = new ChatToolMetadata(true, execution.toolName(), "success", execution.summary());
-            return PreparedChat.forPrompt(augmentedPrompt, resolvedModel, metadata, clearedSession);
+            return PreparedChat.forPrompt(augmentedPrompt, resolvedModel, metadata, execution.toolResult(), clearedSession);
         } catch (IllegalArgumentException | McpClientException ex) {
             ChatToolMetadata metadata = new ChatToolMetadata(
                     true,
@@ -116,16 +119,18 @@ public class ChatOrchestratorService {
                     ex.getMessage()
             );
             ChatSession persistedSession = chatMemoryService.finishTurn(
-                    session,
-                    buildFailureMessage(decision, ex.getMessage()),
-                    metadata,
-                    null,
-                    null
+                session,
+                buildFailureMessage(decision, ex.getMessage()),
+                metadata,
+                null,
+                null,
+                null
             );
             ChatResponse fallbackResponse = new ChatResponse(
                     buildFailureMessage(decision, ex.getMessage()),
                     resolvedModel,
                     metadata,
+                    null,
                     persistedSession.sessionId(),
                     null,
                     null
@@ -146,6 +151,7 @@ public class ChatOrchestratorService {
                 preparedChat.session(),
                 assistantResponse,
                 preparedChat.toolMetadata(),
+                preparedChat.toolResult(),
                 providerMetadata,
                 preparedChat.session().pendingToolCall()
         );
@@ -330,12 +336,66 @@ public class ChatOrchestratorService {
             Map<String, Object> result,
             String summary
     ) {
+        Map<String, Object> toolResult() {
+            return structuredToolResult(toolName, result);
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private static Map<String, Object> structuredToolResult(String toolName, Map<String, Object> result) {
+        return switch (toolName) {
+            case "list_recent_reports" -> Map.of(
+                    "type", "report_list",
+                    "reportType", String.valueOf(result.getOrDefault("report_type", "all")),
+                    "reports", result.getOrDefault("reports", List.of())
+            );
+            case "read_report_summary" -> Map.of(
+                    "type", "report_summary",
+                    "reportType", String.valueOf(result.getOrDefault("report_type", "report")),
+                    "runDir", String.valueOf(result.getOrDefault("run_dir", "")),
+                    "reportPreview", String.valueOf(result.getOrDefault("report_preview", "")),
+                    "summary", result.getOrDefault("summary", Map.of())
+            );
+            case "aws_region_audit" -> {
+                Map<String, Object> summary = result.get("summary") instanceof Map<?, ?> map
+                        ? (Map<String, Object>) map
+                        : Map.of();
+                yield Map.of(
+                        "type", "audit_summary",
+                        "reportType", String.valueOf(result.getOrDefault("report_type", "audit")),
+                        "runDir", String.valueOf(result.getOrDefault("run_dir", "")),
+                        "accountId", String.valueOf(result.getOrDefault("account_id", "")),
+                        "selectedRegions", result.getOrDefault("selected_regions", List.of()),
+                        "selectedServices", result.getOrDefault("selected_services", List.of()),
+                        "successCount", summary.getOrDefault("success_count", 0),
+                        "failureCount", summary.getOrDefault("failure_count", 0),
+                        "skippedCount", summary.getOrDefault("skipped_count", 0),
+                        "failedSteps", result.getOrDefault("failed_steps", List.of())
+                );
+            }
+            case "s3_cloudwatch_report" -> {
+                Map<String, Object> summary = result.get("summary") instanceof Map<?, ?> map
+                        ? (Map<String, Object>) map
+                        : Map.of();
+                yield Map.of(
+                        "type", "s3_report_summary",
+                        "reportType", String.valueOf(result.getOrDefault("report_type", "s3_cloudwatch")),
+                        "bucket", String.valueOf(summary.getOrDefault("bucket", result.getOrDefault("bucket", ""))),
+                        "runDir", String.valueOf(result.getOrDefault("run_dir", "")),
+                        "successCount", summary.getOrDefault("success_count", 0),
+                        "failureCount", summary.getOrDefault("failure_count", 0),
+                        "skippedCount", summary.getOrDefault("skipped_count", 0)
+                );
+            }
+            default -> null;
+        };
     }
 
     public record PreparedChat(
             String prompt,
             String model,
             ChatToolMetadata toolMetadata,
+            Map<String, Object> toolResult,
             PendingToolCallResponse pendingTool,
             ChatSession session,
             ChatResponse immediateResponse
@@ -344,13 +404,14 @@ public class ChatOrchestratorService {
                 String prompt,
                 String model,
                 ChatToolMetadata toolMetadata,
+                Map<String, Object> toolResult,
                 ChatSession session
         ) {
-            return new PreparedChat(prompt, model, toolMetadata, null, session, null);
+            return new PreparedChat(prompt, model, toolMetadata, toolResult, null, session, null);
         }
 
         static PreparedChat forImmediateResponse(ChatResponse response) {
-            return new PreparedChat(null, response.model(), response.tool(), response.pendingTool(), null, response);
+            return new PreparedChat(null, response.model(), response.tool(), response.toolResult(), response.pendingTool(), null, response);
         }
     }
 }

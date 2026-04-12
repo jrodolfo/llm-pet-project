@@ -61,6 +61,7 @@ public class ChatController {
                 sendMetadata(emitter, new ChatStreamMetadata(
                         preparedChat.immediateResponse() != null ? preparedChat.immediateResponse().sessionId() : preparedChat.session().sessionId(),
                         preparedChat.toolMetadata(),
+                        preparedChat.toolResult(),
                         preparedChat.pendingTool(),
                         preparedChat.immediateResponse() != null ? preparedChat.immediateResponse().metadata() : null
                 ));
@@ -81,6 +82,7 @@ public class ChatController {
                 sendMetadata(emitter, new ChatStreamMetadata(
                         preparedChat.session().sessionId(),
                         preparedChat.toolMetadata(),
+                        preparedChat.toolResult(),
                         preparedChat.pendingTool(),
                         providerMetadata
                 ));

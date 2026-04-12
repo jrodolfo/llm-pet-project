@@ -6,6 +6,7 @@ import net.jrodolfo.llm.dto.ModelProviderMetadata;
 import net.jrodolfo.llm.dto.ChatToolMetadata;
 import net.jrodolfo.llm.dto.PendingToolCallResponse;
 
+import java.util.Map;
 import java.util.function.Consumer;
 
 public class OllamaChatModelProvider implements ChatModelProvider {
@@ -21,6 +22,7 @@ public class OllamaChatModelProvider implements ChatModelProvider {
             String message,
             String model,
             ChatToolMetadata toolMetadata,
+            Map<String, Object> toolResult,
             String sessionId,
             PendingToolCallResponse pendingTool
     ) {
@@ -31,6 +33,7 @@ public class OllamaChatModelProvider implements ChatModelProvider {
                 response,
                 resolvedModel,
                 toolMetadata,
+                toolResult,
                 sessionId,
                 pendingTool,
                 new ModelProviderMetadata("ollama", resolvedModel, null, null, null, null, null, null)

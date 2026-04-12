@@ -79,11 +79,13 @@ class ChatOrchestratorServiceTest {
         assertNotNull(response.tool());
         assertTrue(response.tool().used());
         assertEquals("aws_region_audit", response.tool().name());
+        assertEquals("audit_summary", response.toolResult().get("type"));
         assertTrue(chatModelProvider.lastPrompt.contains("<tool_context>"));
         assertTrue(chatModelProvider.lastPrompt.contains("tool_name: aws_region_audit"));
 
         var storedSession = sessionStore.findById(response.sessionId()).orElseThrow();
         assertEquals("aws_region_audit", storedSession.messages().get(1).tool().name());
+        assertEquals("audit_summary", storedSession.messages().get(1).toolResult().get("type"));
     }
 
     @Test
@@ -330,6 +332,7 @@ class ChatOrchestratorServiceTest {
                 String message,
                 String model,
                 net.jrodolfo.llm.dto.ChatToolMetadata toolMetadata,
+                java.util.Map<String, Object> toolResult,
                 String sessionId,
                 net.jrodolfo.llm.dto.PendingToolCallResponse pendingTool
         ) {
@@ -344,11 +347,11 @@ class ChatOrchestratorServiceTest {
                 } else {
                     plannerResponse = "{\"action\":\"none\",\"toolName\":null,\"arguments\":{},\"missingFields\":[],\"reason\":\"No supported tool is required.\"}";
                 }
-                return new ChatResponse(plannerResponse, resolveModel(model), null, null, null, null);
+                return new ChatResponse(plannerResponse, resolveModel(model), null, null, null, null, null);
             }
             this.lastPrompt = message;
             this.generateCalled = true;
-            return new ChatResponse("plain response", resolveModel(model), toolMetadata, sessionId, pendingTool, null);
+            return new ChatResponse("plain response", resolveModel(model), toolMetadata, toolResult, sessionId, pendingTool, null);
         }
 
         @Override

@@ -295,11 +295,12 @@ class SessionControllerTest {
                 timestamp,
                 timestamp.plusSeconds(30),
                 List.of(
-                        new net.jrodolfo.llm.model.ChatSessionMessage("user", userMessage, null, null, timestamp),
+                        new net.jrodolfo.llm.model.ChatSessionMessage("user", userMessage, null, null, null, timestamp),
                         new net.jrodolfo.llm.model.ChatSessionMessage(
                                 "assistant",
                                 "done",
                                 new ChatToolMetadata(true, "aws_region_audit", "success", "done"),
+                                null,
                                 new ModelProviderMetadata("bedrock", "amazon.nova-lite-v1:0", "end_turn", 1, 2, 3, 100L, 90L),
                                 timestamp.plusSeconds(30)
                         )

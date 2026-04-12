@@ -24,7 +24,7 @@ class BedrockChatModelProviderTest {
                 new BedrockProperties("us-east-1", "amazon.nova-lite-v1:0")
         );
 
-        ChatResponse response = provider.chat("hello from bedrock", "   ", null, "session-1", null);
+        ChatResponse response = provider.chat("hello from bedrock", "   ", null, null, "session-1", null);
 
         assertEquals("amazon.nova-lite-v1:0", response.model());
         assertEquals("bedrock response", response.response());

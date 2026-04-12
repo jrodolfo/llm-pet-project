@@ -140,6 +140,7 @@ The UI now includes a local session sidebar where you can:
 - delete a saved session
 - see when a chat is waiting for missing tool input, such as a bucket name
 - browse automatically generated session titles and summaries
+- view structured MCP report cards for supported tool results, such as recent reports, audit summaries, and S3 report summaries
 
 ## 4. Run the Local MCP Server
 
@@ -232,6 +233,7 @@ Compose uses `host.docker.internal:11434` so backend container can reach host Ol
 - The frontend reuses the returned `sessionId` automatically so follow-up prompts keep local context.
 - `POST /api/chat` responses now include optional provider metadata. For Bedrock this includes stop reason, token usage, duration, and provider latency when available.
 - Streamed replies can now also attach final provider metadata to the assistant message in the UI when the backend emits a completion metadata event.
+- Supported MCP-backed report results now render as structured cards in the chat UI instead of only plain assistant text.
 - Session titles in the sidebar are derived from the first user message in each stored session.
 - Session summaries are generated locally from the saved conversation so the sidebar is easier to scan.
 - The session sidebar now supports local search over titles, summaries, and message content.

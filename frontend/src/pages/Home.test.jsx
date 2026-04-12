@@ -81,6 +81,13 @@ describe('Home', () => {
         status: 'success',
         summary: 'AWS audit completed.'
       },
+      toolResult: {
+        type: 'audit_summary',
+        accountId: '123456789012',
+        successCount: 10,
+        failureCount: 0,
+        skippedCount: 1
+      },
       metadata: {
         provider: 'bedrock',
         modelId: 'amazon.nova-lite-v1:0',
@@ -98,6 +105,8 @@ describe('Home', () => {
 
     expect((await screen.findAllByText('Audit complete.')).length).toBeGreaterThan(0);
     expect(screen.getByText(/used tool: aws_region_audit/i)).toBeInTheDocument();
+    expect(screen.getByText('aws audit')).toBeInTheDocument();
+    expect(screen.getByText(/success: 10/i)).toBeInTheDocument();
     expect(screen.queryByText(/provider: bedrock/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/tokens: \? in \/ \? out \/ 46 total/i)).not.toBeInTheDocument();
     expect(screen.getByText(/awaiting input for tool:/i)).toBeInTheDocument();

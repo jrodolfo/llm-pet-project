@@ -22,6 +22,32 @@ describe('MessageBubble', () => {
     expect(screen.getByText(/AWS audit completed./i)).toBeInTheDocument();
   });
 
+  it('renders structured report results for supported tool payloads', () => {
+    render(
+      <MessageBubble
+        role="assistant"
+        content="I found recent reports."
+        tool={{ used: true, name: 'list_recent_reports', status: 'success', summary: 'Found 2 recent reports.' }}
+        toolResult={{
+          type: 'report_list',
+          reportType: 'all',
+          reports: [
+            {
+              report_type: 'audit',
+              created_at: '2026-04-12T10:00:00Z',
+              run_dir: '/tmp/audit-1'
+            }
+          ]
+        }}
+      />
+    );
+
+    expect(screen.getByText('reports')).toBeInTheDocument();
+    expect(screen.getByText(/type: all/i)).toBeInTheDocument();
+    expect(screen.getByText(/^audit$/i)).toBeInTheDocument();
+    expect(screen.getByText(/\/tmp\/audit-1/i)).toBeInTheDocument();
+  });
+
   it('renders provider metadata for assistant messages', () => {
     render(
       <MessageBubble

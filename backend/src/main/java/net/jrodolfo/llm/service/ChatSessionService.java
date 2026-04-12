@@ -94,6 +94,7 @@ public class ChatSessionService {
                 message.role(),
                 message.content(),
                 message.tool(),
+                message.toolResult(),
                 message.metadata(),
                 message.timestamp()
         );
