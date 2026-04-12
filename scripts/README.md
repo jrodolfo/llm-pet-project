@@ -1,13 +1,18 @@
-# AWS Region Audit
+# Scripts
 
 [![ci](https://github.com/jrodolfo/llm-pet-project/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/jrodolfo/llm-pet-project/actions/workflows/ci.yml)
 ![shell](https://img.shields.io/badge/shell-bash-89e051)
 ![license](https://img.shields.io/badge/license-MIT-blue)
 ![aws](https://img.shields.io/badge/aws-cloud-a1662f)
 
-Shell-based AWS audit helper for checking common resources across AWS regions, defaulting to `us-east-1` and `us-east-2`.
+Shell-based AWS audit and S3 CloudWatch helpers, plus local smoke-check utilities used by the main application and the MCP server.
 
-The repo also includes a focused S3 CloudWatch script for inspecting one bucket's storage and request metrics.
+The directory includes:
+
+- a regional AWS audit report generator
+- a focused S3 CloudWatch report generator for one bucket
+- local shell tests
+- a smoke-check script for the local frontend/backend/Ollama stack
 
 It is designed for a practical cleanup workflow:
 - compare resources across one or more regions
@@ -37,7 +42,7 @@ That folder contains:
 - `stderr/`: stderr captured from failed commands
 - `meta/status.tsv`: machine-readable command status metadata
 
-The `reports/` directory is ignored by Git so audit output does not get committed.
+The `reports/` directory is ignored by Git so generated output does not get committed.
 
 ## Project structure
 
@@ -62,6 +67,7 @@ The `reports/` directory is ignored by Git so audit output does not get committe
 Key files:
 - `aws-region-audit-report.sh`: regional AWS audit report generator
 - `aws-s3-cloudwatch-report.sh`: focused S3 CloudWatch report generator for one bucket
+- `check-app.sh`: local stack smoke-check script
 - `LICENSE`: MIT license for the repository
 - `tests/`: mock-based shell tests
 - `.github/workflows/ci.yml`: GitHub Actions CI workflow
@@ -179,6 +185,13 @@ Optional overrides:
 BACKEND_URL=http://localhost:8080 FRONTEND_URL=http://localhost:3000 CHECK_OLLAMA=false make check-app
 ```
 
+The smoke check uses these defaults:
+
+- `BACKEND_URL=http://localhost:8080`
+- `FRONTEND_URL=http://localhost:5173`
+- `OLLAMA_URL=http://localhost:11434`
+- `CHECK_OLLAMA=true`
+
 Run the S3 CloudWatch bucket report:
 
 ```bash
@@ -258,14 +271,3 @@ Notes for S3 metrics:
 - Skipped commands are recorded explicitly when you use `--services`.
 - The script is intentionally defensive and continues after individual command failures.
 - If AWS permissions are missing or a service is unavailable, the failure is recorded in the report and under `stderr/`.
-
-## Contact
-
-For issues or inquiries, feel free to contact the maintainer:
-
-- Name: Rod Oliveira
-- Role: Software Developer
-- Email: jrodolfo@gmail.com
-- GitHub: https://github.com/jrodolfo
-- LinkedIn: https://www.linkedin.com/in/rodoliveira
-- Webpage: https://jrodolfo.net

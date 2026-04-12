@@ -56,6 +56,8 @@ cd mcp
 npm start
 ```
 
+The Spring backend can also launch this server automatically. In the default local setup, MCP is enabled in the backend by default.
+
 ## Notes
 
 - Transport is local `stdio`.
@@ -69,3 +71,12 @@ npm start
 
 - `MCP_AUDIT_TIMEOUT_MS`
 - `MCP_S3_REPORT_TIMEOUT_MS`
+
+## Backend Defaults
+
+When launched by the backend, the default MCP settings are:
+
+- `MCP_ENABLED=true`
+- `MCP_COMMAND=node`
+- `MCP_WORKING_DIRECTORY=mcp`
+- `MCP_ARG_1=dist/index.js`

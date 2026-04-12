@@ -5,9 +5,9 @@
 ![spring boot](https://img.shields.io/badge/spring%20boot-3.4-6db33f)
 ![ollama](https://img.shields.io/badge/ollama-default%20provider-222222)
 ![bedrock](https://img.shields.io/badge/bedrock-optional%20provider-ff9900)
-![mcp](https://img.shields.io/badge/mcp-optional%20integration-0a7ea4)
+![mcp](https://img.shields.io/badge/mcp-local%20tools-0a7ea4)
 
-Spring Boot API that routes chat through a model-provider abstraction, supports Ollama and Amazon Bedrock, orchestrates optional local MCP tools, and persists local JSON chat sessions.
+Spring Boot API for chat, local sessions, artifact preview, and MCP-backed AWS tooling.
 
 ## Run
 
@@ -15,19 +15,19 @@ Spring Boot API that routes chat through a model-provider abstraction, supports 
 mvn spring-boot:run
 ```
 
-## OpenAPI
+## API Docs and Operations
 
-- `http://localhost:8080/v3/api-docs`
-- `http://localhost:8080/swagger-ui/index.html`
-- `http://localhost:8080/actuator/health`
+- OpenAPI: `http://localhost:8080/v3/api-docs`
+- Swagger UI: `http://localhost:8080/swagger-ui/index.html`
+- Health: `http://localhost:8080/actuator/health`
+- Info: `http://localhost:8080/actuator/info`
 
-Swagger UI excludes `/actuator/**` endpoints so the generated docs stay focused on the application API.
-`GET /actuator` redirects to `/actuator/health`, and `GET /actuator/info` returns backend/runtime details including explicit MCP configuration details.
+`GET /actuator` redirects to `/actuator/health`. Swagger excludes `/actuator/**` so the generated docs stay focused on the application API.
 
-## Endpoints
+## Main Endpoints
 
 - `POST /api/chat`
-- `POST /api/chat/stream` (SSE)
+- `POST /api/chat/stream`
 - `GET /api/sessions`
 - `GET /api/sessions/{sessionId}`
 - `GET /api/sessions/{sessionId}/export`
@@ -51,15 +51,26 @@ Swagger UI excludes `/actuator/**` endpoints so the generated docs stay focused 
 }
 ```
 
-The backend returns the active `sessionId` in chat responses so the frontend can continue the same local conversation.
-Normal chat responses also include optional provider metadata. For Bedrock, that metadata includes stop reason, token counts, total duration, and Bedrock latency when the runtime returns them.
-Streaming chat emits `metadata` SSE events at the start of the stream and can emit a final `metadata` event with provider details before `[DONE]`.
-Supported MCP-backed tool executions can also attach a compact structured `toolResult` payload so the frontend can render report-oriented results as cards instead of only plain text.
-Those report-oriented cards can now drive read-only artifact interactions through `/api/artifacts/files` and `/api/artifacts/preview`.
+## Providers
 
-## Local MCP Integration
+The backend uses a model-provider abstraction.
 
-The backend can invoke the local MCP server in [`../mcp`](../mcp) as a separate process.
+- default provider: `ollama`
+- optional provider: `bedrock`
+
+Relevant settings:
+
+- `APP_MODEL_PROVIDER` default: `ollama`
+- `OLLAMA_BASE_URL` default: `http://localhost:11434`
+- `OLLAMA_DEFAULT_MODEL` default: `llama3:8b`
+- `BEDROCK_REGION` default: `us-east-1`
+- `BEDROCK_MODEL_ID` default: empty
+
+Bedrock supports both normal chat and streaming chat.
+
+## MCP Integration
+
+The backend can launch the local MCP server in [`../mcp`](../mcp) as a subprocess.
 
 Build the MCP server first:
 
@@ -69,84 +80,77 @@ npm install
 npm run build
 ```
 
-Then enable MCP when starting Spring Boot:
+Then start the backend normally:
 
 ```bash
 cd ../backend
-MCP_ENABLED=true mvn spring-boot:run
+mvn spring-boot:run
 ```
 
-Relevant environment variables:
+MCP is enabled by default. Disable it only when needed:
 
-- `APP_MODEL_PROVIDER` default: `ollama`
-- `OLLAMA_DEFAULT_MODEL` default: `llama3:8b`
-- `BEDROCK_REGION` default: `us-east-1`
-- `BEDROCK_MODEL_ID` default: empty
-- `APP_TOOLS_ROUTING_MODE` default: `hybrid`
-- `APP_TOOLS_LOG_PLANNER` default: `false`
+```bash
+cd ../backend
+MCP_ENABLED=false mvn spring-boot:run
+```
+
+Relevant MCP settings:
+
 - `MCP_ENABLED` default: `true`
 - `MCP_COMMAND` default: `node`
-- `MCP_WORKING_DIRECTORY` default: `../mcp`
+- `MCP_WORKING_DIRECTORY` default: `mcp`
 - `MCP_ARG_1` default: `dist/index.js`
-- `MCP_STARTUP_TIMEOUT_SECONDS`
-- `MCP_TOOL_TIMEOUT_SECONDS`
+- `MCP_STARTUP_TIMEOUT_SECONDS` default: `10`
+- `MCP_TOOL_TIMEOUT_SECONDS` default: `120`
+
+The backend resolves the MCP working directory from the repository root so it remains stable even when the JVM starts from `backend/`.
+
+## Sessions and Storage
+
+Sessions are stored locally as JSON files.
+
 - `APP_STORAGE_SESSIONS_DIRECTORY` default: `data/sessions`
 - `APP_STORAGE_REPORTS_DIRECTORY` default: `scripts/reports`
 
-The backend now also exposes Spring Boot Actuator health locally through:
+Those defaults are resolved from the repository root, so the backend reports the correct local paths even when started from different working directories.
 
-- `GET /actuator/health`
+Session support includes:
 
-That health response now includes app-specific details for:
+- local JSON-backed conversation memory
+- generated titles and summaries
+- text search with `query=...`
+- additional filters for `provider`, `toolUsage`, and `pending`
+- JSON and Markdown export
+- JSON import with collision-safe session ids
+
+## Tooling and Artifacts
+
+The backend supports:
+
+- LLM-assisted tool routing with rule-based fallback
+- multi-turn clarification for missing tool inputs
+- structured `toolResult` payloads for supported report flows
+- read-only artifact preview under the configured reports directory
+
+Set `APP_TOOLS_LOG_PLANNER=true` to log raw planner output, parsed decisions, and fallback usage during local tuning.
+
+## Actuator Notes
+
+`/actuator/health` includes app-specific checks for:
 
 - active model provider readiness
 - MCP configuration state
-- local session and reports directory availability
+- local sessions and reports directories
 
-The storage defaults are resolved from the repository root so the backend reports the correct local `data/sessions` and `scripts/reports` paths even when started from different working directories.
+`/actuator/info` includes backend/runtime details such as:
 
-## Local Conversation Memory
+- active provider and model
+- MCP enablement and resolved working directory
+- resolved storage paths
 
-Chat sessions are stored locally as JSON files under `../data/sessions` by default.
+## Notes
 
-The backend exposes a small local session API so the frontend can list, reopen, and delete stored chats.
-`GET /api/sessions?query=bedrock` can filter that list by title, summary, or message content using a case-insensitive text match.
-The same endpoint also supports `provider`, `toolUsage`, and `pending` filters so the sidebar can narrow sessions by provider, whether tools were used, and whether a clarification is still pending.
-It also supports export of a stored session through `GET /api/sessions/{sessionId}/export`.
-Use the default response for JSON, or `GET /api/sessions/{sessionId}/export?format=markdown` for a human-readable Markdown export.
-It also supports JSON import through `POST /api/sessions/import`. If the imported `sessionId` already exists locally, the backend generates a new one instead of overwriting the existing session.
-It also keeps pending tool clarification state in the session so a short follow-up reply can complete a previously blocked tool request.
-That pending state can also be surfaced in the chat UI as an informational hint.
-Session files also store generated local `title` and `summary` metadata for easier sidebar browsing.
-Assistant messages can also persist structured `toolResult` data so reopened sessions keep the same report-oriented UI rendering.
-Tool routing can run in `rules`, `llm`, or `hybrid` mode, with `hybrid` using the LLM planner first and falling back to the rule-based router when the planner output is invalid.
-Set `APP_TOOLS_LOG_PLANNER=true` to log raw planner output, parsed decisions, and fallback usage while tuning the planner locally.
-The backend test suite includes a fixture-driven planner evaluation pass and prints a compact summary of tool-use, clarification, and fallback cases.
-Artifact preview access is read-only and constrained to the configured reports directory so the frontend cannot browse arbitrary local files.
-
-## Bedrock Provider
-
-Set `APP_MODEL_PROVIDER=bedrock` to use Amazon Bedrock instead of Ollama.
-
-Required configuration:
-
-- `BEDROCK_REGION`
-- `BEDROCK_MODEL_ID`
-
-Bedrock now supports both:
-
-- normal chat through `POST /api/chat`
-- streaming chat through `POST /api/chat/stream`
-
-For non-streaming chat, Bedrock responses now include provider metadata such as:
-
-- `stopReason`
-- `inputTokens`
-- `outputTokens`
-- `totalTokens`
-- `durationMs`
-- `providerLatencyMs`
-
-Relevant environment variable:
-
-- `APP_STORAGE_SESSIONS_DIRECTORY` default: `../data/sessions`
+- normal chat responses can include provider metadata
+- streamed replies can emit final provider metadata before `[DONE]`
+- reopened sessions can preserve tool metadata, provider metadata, and structured tool results
+- artifact preview access is read-only and constrained to the configured reports directory
