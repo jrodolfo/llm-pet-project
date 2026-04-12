@@ -8,12 +8,15 @@ import net.jrodolfo.llm.dto.ModelProviderMetadata;
 import net.jrodolfo.llm.model.ChatSession;
 import net.jrodolfo.llm.model.PendingToolCall;
 import net.jrodolfo.llm.service.ChatToolRouterService;
+import net.jrodolfo.llm.service.ChatSessionExportService;
 import net.jrodolfo.llm.service.ChatSessionMetadataService;
 import net.jrodolfo.llm.service.ChatSessionService;
 import net.jrodolfo.llm.service.FileChatSessionStore;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.springframework.http.converter.ByteArrayHttpMessageConverter;
+import org.springframework.http.converter.StringHttpMessageConverter;
 import org.springframework.http.converter.json.MappingJackson2HttpMessageConverter;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
@@ -41,10 +44,15 @@ class SessionControllerTest {
         objectMapper.registerModule(new JavaTimeModule());
         sessionStore = new FileChatSessionStore(objectMapper, new AppStorageProperties(tempDir.resolve("sessions").toString()));
         ChatSessionService sessionService = new ChatSessionService(sessionStore, new ChatSessionMetadataService());
+        ChatSessionExportService exportService = new ChatSessionExportService();
 
         mockMvc = MockMvcBuilders
-                .standaloneSetup(new SessionController(sessionService))
-                .setMessageConverters(new MappingJackson2HttpMessageConverter(objectMapper))
+                .standaloneSetup(new SessionController(sessionService, exportService))
+                .setMessageConverters(
+                        new MappingJackson2HttpMessageConverter(objectMapper),
+                        new StringHttpMessageConverter(),
+                        new ByteArrayHttpMessageConverter()
+                )
                 .build();
     }
 
@@ -111,6 +119,40 @@ class SessionControllerTest {
                 .andExpect(jsonPath("$.pendingTool").doesNotExist())
                 .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.header()
                         .string("Content-Disposition", "attachment; filename=\"session-1.json\""));
+    }
+
+    @Test
+    void exportSessionReturnsMarkdownAttachment() throws Exception {
+        saveSession(
+                "session-1",
+                "check bucket metrics",
+                Instant.parse("2026-04-10T10:00:00Z"),
+                new PendingToolCall(
+                        ChatToolRouterService.DecisionType.S3_CLOUDWATCH_REPORT,
+                        null,
+                        null,
+                        null,
+                        7,
+                        "s3 cloudwatch metrics request",
+                        List.of(),
+                        List.of("bucket")
+                )
+        );
+
+        mockMvc.perform(get("/api/sessions/session-1/export").queryParam("format", "markdown"))
+                .andExpect(status().isOk())
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.content()
+                        .contentType("text/markdown"))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.content()
+                        .string(org.hamcrest.Matchers.containsString("# check bucket metrics")))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.content()
+                        .string(org.hamcrest.Matchers.containsString("## pending tool")))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.content()
+                        .string(org.hamcrest.Matchers.containsString("awaiting tool: s3_cloudwatch_report")))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.content()
+                        .string(org.hamcrest.Matchers.containsString("provider: bedrock")))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.header()
+                        .string("Content-Disposition", "attachment; filename=\"session-1.md\""));
     }
 
     @Test

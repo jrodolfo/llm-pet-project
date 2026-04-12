@@ -114,11 +114,11 @@ function Home() {
     }
   };
 
-  const downloadSession = async (targetSessionId) => {
+  const downloadSession = async (targetSessionId, format = 'json') => {
     setError('');
     setLoading(true);
     try {
-      const { blob, filename } = await exportSession(targetSessionId);
+      const { blob, filename } = await exportSession(targetSessionId, format);
       const objectUrl = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = objectUrl;
@@ -201,11 +201,20 @@ function Home() {
                 <button
                   type="button"
                   className="session-export"
-                  onClick={() => downloadSession(session.sessionId)}
+                  onClick={() => downloadSession(session.sessionId, 'json')}
                   disabled={loading}
                   aria-label={`Export session ${session.title}`}
                 >
                   Export
+                </button>
+                <button
+                  type="button"
+                  className="session-export"
+                  onClick={() => downloadSession(session.sessionId, 'markdown')}
+                  disabled={loading}
+                  aria-label={`Export markdown session ${session.title}`}
+                >
+                  Export MD
                 </button>
                 <button
                   type="button"

@@ -354,10 +354,48 @@ describe('Home', () => {
     expect(await screen.findByText('run aws audit')).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: /Export session run aws audit/i }));
 
-    expect(exportSession).toHaveBeenCalledWith('session-1');
+    expect(exportSession).toHaveBeenCalledWith('session-1', 'json');
     expect(createObjectUrlSpy).toHaveBeenCalled();
     expect(clickSpy).toHaveBeenCalled();
     expect(revokeObjectUrlSpy).toHaveBeenCalledWith('blob:test');
+  });
+
+  it('exports a session as markdown from the sidebar', async () => {
+    listSessions.mockResolvedValue([
+      {
+        sessionId: 'session-1',
+        title: 'run aws audit',
+        summary: 'Audit complete.',
+        model: 'llama3:8b',
+        createdAt: '2026-04-10T10:00:00Z',
+        updatedAt: '2026-04-10T10:01:00Z',
+        messageCount: 2
+      }
+    ]);
+    exportSession.mockResolvedValue({
+      blob: new Blob(['# run aws audit'], { type: 'text/markdown' }),
+      filename: 'session-1.md'
+    });
+    if (!window.URL.createObjectURL) {
+      window.URL.createObjectURL = () => 'blob:test-markdown';
+    }
+    if (!window.URL.revokeObjectURL) {
+      window.URL.revokeObjectURL = () => {};
+    }
+    const createObjectUrlSpy = vi.spyOn(window.URL, 'createObjectURL').mockReturnValue('blob:test-markdown');
+    const revokeObjectUrlSpy = vi.spyOn(window.URL, 'revokeObjectURL').mockImplementation(() => {});
+    const clickSpy = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
+
+    render(<Home />);
+    const user = userEvent.setup();
+
+    expect(await screen.findByText('run aws audit')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: /Export markdown session run aws audit/i }));
+
+    expect(exportSession).toHaveBeenCalledWith('session-1', 'markdown');
+    expect(createObjectUrlSpy).toHaveBeenCalled();
+    expect(clickSpy).toHaveBeenCalled();
+    expect(revokeObjectUrlSpy).toHaveBeenCalledWith('blob:test-markdown');
   });
 
   it('renders session summaries in the sidebar', async () => {

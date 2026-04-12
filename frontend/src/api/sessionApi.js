@@ -34,13 +34,14 @@ export async function deleteSession(sessionId) {
   }
 }
 
-function filenameFromDisposition(contentDisposition, sessionId) {
+function filenameFromDisposition(contentDisposition, sessionId, format) {
   const match = contentDisposition?.match(/filename="([^"]+)"/i);
-  return match?.[1] || `${sessionId}.json`;
+  const extension = format === 'markdown' || format === 'md' ? 'md' : 'json';
+  return match?.[1] || `${sessionId}.${extension}`;
 }
 
-export async function exportSession(sessionId) {
-  const response = await fetch(`/api/sessions/${encodeURIComponent(sessionId)}/export`);
+export async function exportSession(sessionId, format = 'json') {
+  const response = await fetch(`/api/sessions/${encodeURIComponent(sessionId)}/export?format=${encodeURIComponent(format)}`);
   if (!response.ok) {
     const payload = await parseJson(response);
     throw new Error(payload.error || 'Failed to export session.');
@@ -48,6 +49,6 @@ export async function exportSession(sessionId) {
 
   return {
     blob: await response.blob(),
-    filename: filenameFromDisposition(response.headers.get('Content-Disposition'), sessionId)
+    filename: filenameFromDisposition(response.headers.get('Content-Disposition'), sessionId, format)
   };
 }

@@ -2,6 +2,7 @@ package net.jrodolfo.llm.controller;
 
 import net.jrodolfo.llm.dto.ChatSessionDetailResponse;
 import net.jrodolfo.llm.dto.ChatSessionSummaryResponse;
+import net.jrodolfo.llm.service.ChatSessionExportService;
 import net.jrodolfo.llm.service.ChatSessionNotFoundException;
 import net.jrodolfo.llm.service.ChatSessionService;
 import org.springframework.http.HttpStatus;
@@ -11,20 +12,24 @@ import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 import java.util.Map;
+import java.nio.charset.StandardCharsets;
 
 @RestController
 @RequestMapping("/api/sessions")
 public class SessionController {
 
     private final ChatSessionService chatSessionService;
+    private final ChatSessionExportService chatSessionExportService;
 
-    public SessionController(ChatSessionService chatSessionService) {
+    public SessionController(ChatSessionService chatSessionService, ChatSessionExportService chatSessionExportService) {
         this.chatSessionService = chatSessionService;
+        this.chatSessionExportService = chatSessionExportService;
     }
 
     @GetMapping
@@ -38,8 +43,18 @@ public class SessionController {
     }
 
     @GetMapping("/{sessionId}/export")
-    public ResponseEntity<ChatSessionDetailResponse> exportSession(@PathVariable String sessionId) {
+    public ResponseEntity<?> exportSession(
+            @PathVariable String sessionId,
+            @RequestParam(defaultValue = "json") String format
+    ) {
         ChatSessionDetailResponse session = chatSessionService.getSession(sessionId);
+        if ("markdown".equalsIgnoreCase(format) || "md".equalsIgnoreCase(format)) {
+            return ResponseEntity.ok()
+                    .contentType(MediaType.parseMediaType("text/markdown"))
+                    .header("Content-Disposition", "attachment; filename=\"" + session.sessionId() + ".md\"")
+                    .body(chatSessionExportService.toMarkdown(session).getBytes(StandardCharsets.UTF_8));
+        }
+
         return ResponseEntity.ok()
                 .contentType(MediaType.APPLICATION_JSON)
                 .header("Content-Disposition", "attachment; filename=\"" + session.sessionId() + ".json\"")
