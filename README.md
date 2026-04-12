@@ -78,7 +78,7 @@ OpenAPI and Swagger UI:
 - `http://localhost:8080/actuator/health`
 
 The Swagger UI now excludes `/actuator/**` endpoints so the generated API docs stay focused on the application API.
-The Actuator root discovery page is intentionally disabled; check health directly through `/actuator/health`.
+`GET /actuator` now redirects to `/actuator/health`, and `GET /actuator/info` returns backend/runtime details instead of an empty payload.
 
 ### Backend API
 

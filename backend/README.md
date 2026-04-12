@@ -22,7 +22,7 @@ mvn spring-boot:run
 - `http://localhost:8080/actuator/health`
 
 Swagger UI excludes `/actuator/**` endpoints so the generated docs stay focused on the application API.
-The Actuator discovery page at `/actuator` is intentionally disabled; use `/actuator/health` directly.
+`GET /actuator` redirects to `/actuator/health`, and `GET /actuator/info` returns backend/runtime details.
 
 ## Endpoints
 

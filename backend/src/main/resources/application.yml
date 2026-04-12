@@ -15,6 +15,9 @@ management:
   endpoint:
     health:
       show-details: always
+  info:
+    env:
+      enabled: false
 
 app:
   model:
