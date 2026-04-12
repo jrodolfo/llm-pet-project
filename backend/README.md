@@ -140,7 +140,8 @@ Set `APP_TOOLS_LOG_PLANNER=true` to log raw planner output, parsed decisions, an
 `/actuator/health` includes app-specific checks for:
 
 - active model provider readiness
-- MCP configuration state
+- active provider configuration, reachability, and readiness
+- MCP configuration and lightweight tool-handshake readiness
 - local sessions and reports directories
 
 `/actuator/info` includes backend/runtime details such as:
