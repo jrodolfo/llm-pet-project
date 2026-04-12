@@ -24,6 +24,16 @@ describe('chatApi', () => {
         response: 'Answer',
         model: 'llama3:8b',
         sessionId: 'session-123',
+        metadata: {
+          provider: 'bedrock',
+          modelId: 'amazon.nova-lite-v1:0',
+          stopReason: 'end_turn',
+          inputTokens: 12,
+          outputTokens: 34,
+          totalTokens: 46,
+          durationMs: 412,
+          providerLatencyMs: 321
+        },
         pendingTool: {
           toolName: 's3_cloudwatch_report',
           reason: 's3 cloudwatch metrics request',
@@ -40,6 +50,8 @@ describe('chatApi', () => {
 
     expect(result.response).toBe('Answer');
     expect(result.sessionId).toBe('session-123');
+    expect(result.metadata.provider).toBe('bedrock');
+    expect(result.metadata.totalTokens).toBe(46);
     expect(result.pendingTool.toolName).toBe('s3_cloudwatch_report');
     expect(result.tool.name).toBe('aws_region_audit');
   });

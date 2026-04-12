@@ -17,6 +17,7 @@ function ChatWindow({ messages }) {
           role={message.role}
           content={message.content}
           tool={message.tool}
+          metadata={message.metadata}
         />
       ))}
     </div>

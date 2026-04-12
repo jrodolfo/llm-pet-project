@@ -17,8 +17,8 @@ function Home() {
     loadSessions();
   }, []);
 
-  const addMessage = (role, content, tool = null) => {
-    setMessages((current) => [...current, { id: crypto.randomUUID(), role, content, tool }]);
+  const addMessage = (role, content, tool = null, metadata = null) => {
+    setMessages((current) => [...current, { id: crypto.randomUUID(), role, content, tool, metadata }]);
   };
 
   const updateLastAssistant = (updater) => {
@@ -32,13 +32,17 @@ function Home() {
     );
   };
 
-  const updateLastAssistantTool = (tool) => {
+  const updateLastAssistantDetails = ({ tool, metadata }) => {
     setMessages((current) =>
       current.map((message, index) => {
         if (index !== current.length - 1 || message.role !== 'assistant') {
           return message;
         }
-        return { ...message, tool };
+        return {
+          ...message,
+          tool: tool ?? message.tool,
+          metadata: metadata ?? message.metadata
+        };
       })
     );
   };
@@ -71,7 +75,8 @@ function Home() {
           id: `${payload.sessionId}-${index}-${message.timestamp || index}`,
           role: message.role,
           content: message.content,
-          tool: message.tool || null
+          tool: message.tool || null,
+          metadata: message.metadata || null
         }))
       );
     } catch (err) {
@@ -107,7 +112,7 @@ function Home() {
         const payload = await sendMessage({ message, model, sessionId });
         setSessionId((current) => payload.sessionId || current);
         setPendingTool(payload.pendingTool || null);
-        addMessage('assistant', payload.response || '(No response)', payload.tool || null);
+        addMessage('assistant', payload.response || '(No response)', payload.tool || null, payload.metadata || null);
         await loadSessions();
       } else {
         addMessage('assistant', '');
@@ -118,7 +123,7 @@ function Home() {
           onMetadata: (metadata) => {
             setSessionId((current) => metadata?.sessionId || current);
             setPendingTool(metadata?.pendingTool || null);
-            updateLastAssistantTool(metadata?.tool || null);
+            updateLastAssistantDetails({ tool: metadata?.tool || null, metadata: metadata?.metadata || null });
           },
           onToken: (token) => {
             updateLastAssistant((current) => current + token);

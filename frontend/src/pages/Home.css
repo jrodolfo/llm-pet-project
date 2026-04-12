@@ -203,6 +203,23 @@
   color: #475569;
 }
 
+.provider-metadata {
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px dashed #dbe2ea;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.8rem;
+  color: #526072;
+}
+
+.provider-metadata-title {
+  font-weight: 600;
+  text-transform: lowercase;
+  color: #334155;
+}
+
 .input-box {
   border: 1px solid #e2e8f0;
   border-radius: 12px;

@@ -34,6 +34,16 @@ describe('Home', () => {
           role: 'assistant',
           content: 'Audit complete.',
           tool: { used: true, name: 'aws_region_audit', status: 'success', summary: 'AWS audit completed.' },
+          metadata: {
+            provider: 'bedrock',
+            modelId: 'amazon.nova-lite-v1:0',
+            stopReason: 'end_turn',
+            inputTokens: 12,
+            outputTokens: 34,
+            totalTokens: 46,
+            durationMs: 412,
+            providerLatencyMs: 321
+          },
           timestamp: '2026-04-10T10:01:00Z'
         }
       ]
@@ -56,6 +66,12 @@ describe('Home', () => {
         name: 'aws_region_audit',
         status: 'success',
         summary: 'AWS audit completed.'
+      },
+      metadata: {
+        provider: 'bedrock',
+        modelId: 'amazon.nova-lite-v1:0',
+        totalTokens: 46,
+        durationMs: 412
       }
     });
 
@@ -68,6 +84,8 @@ describe('Home', () => {
 
     expect((await screen.findAllByText('Audit complete.')).length).toBeGreaterThan(0);
     expect(screen.getByText(/used tool: aws_region_audit/i)).toBeInTheDocument();
+    expect(screen.getByText(/provider: bedrock/i)).toBeInTheDocument();
+    expect(screen.getByText(/tokens: \? in \/ \? out \/ 46 total/i)).toBeInTheDocument();
     expect(screen.getByText(/awaiting input for tool:/i)).toBeInTheDocument();
     expect(screen.getByText(/missing: bucket/i)).toBeInTheDocument();
   });
@@ -129,6 +147,7 @@ describe('Home', () => {
 
     expect((await screen.findAllByText('Audit complete.')).length).toBeGreaterThan(0);
     expect(screen.getByText(/used tool: aws_region_audit/i)).toBeInTheDocument();
+    expect(screen.getByText(/provider: bedrock/i)).toBeInTheDocument();
     expect(getSession).toHaveBeenCalledWith('session-1');
   });
 
