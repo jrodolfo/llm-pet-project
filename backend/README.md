@@ -21,6 +21,9 @@ mvn spring-boot:run
 - `http://localhost:8080/swagger-ui/index.html`
 - `http://localhost:8080/actuator/health`
 
+Swagger UI excludes `/actuator/**` endpoints so the generated docs stay focused on the application API.
+The Actuator discovery page at `/actuator` is intentionally disabled; use `/actuator/health` directly.
+
 ## Endpoints
 
 - `POST /api/chat`
@@ -87,11 +90,20 @@ Relevant environment variables:
 - `MCP_ARG_1` default: `dist/index.js`
 - `MCP_STARTUP_TIMEOUT_SECONDS`
 - `MCP_TOOL_TIMEOUT_SECONDS`
-- `APP_STORAGE_REPORTS_DIRECTORY` default: `../scripts/reports`
+- `APP_STORAGE_SESSIONS_DIRECTORY` default: `data/sessions`
+- `APP_STORAGE_REPORTS_DIRECTORY` default: `scripts/reports`
 
 The backend now also exposes Spring Boot Actuator health locally through:
 
 - `GET /actuator/health`
+
+That health response now includes app-specific details for:
+
+- active model provider readiness
+- MCP configuration state
+- local session and reports directory availability
+
+The storage defaults are resolved from the repository root so the backend reports the correct local `data/sessions` and `scripts/reports` paths even when started from different working directories.
 
 ## Local Conversation Memory
 

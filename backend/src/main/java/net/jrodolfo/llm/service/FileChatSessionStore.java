@@ -22,7 +22,7 @@ public class FileChatSessionStore {
 
     public FileChatSessionStore(ObjectMapper objectMapper, AppStorageProperties properties) {
         this.objectMapper = objectMapper;
-        this.sessionsDirectory = Path.of(properties.sessionsDirectory()).normalize();
+        this.sessionsDirectory = properties.resolvedSessionsDirectory();
     }
 
     public Optional<ChatSession> findById(String sessionId) {

@@ -30,7 +30,7 @@ public class ChatArtifactService {
     private final Path reportsDirectory;
 
     public ChatArtifactService(AppStorageProperties properties) {
-        this.reportsDirectory = Path.of(properties.reportsDirectory()).toAbsolutePath().normalize();
+        this.reportsDirectory = properties.resolvedReportsDirectory();
     }
 
     public List<ArtifactFileResponse> listFiles(String runDir) {

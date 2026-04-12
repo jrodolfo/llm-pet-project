@@ -77,6 +77,9 @@ OpenAPI and Swagger UI:
 - `http://localhost:8080/swagger-ui/index.html`
 - `http://localhost:8080/actuator/health`
 
+The Swagger UI now excludes `/actuator/**` endpoints so the generated API docs stay focused on the application API.
+The Actuator root discovery page is intentionally disabled; check health directly through `/actuator/health`.
+
 ### Backend API
 
 `POST /api/chat`
@@ -239,8 +242,10 @@ Compose uses `host.docker.internal:11434` so backend container can reach host Ol
 - `MCP_ARG_1` (default: `dist/index.js`)
 - `MCP_STARTUP_TIMEOUT_SECONDS` (default: `10`)
 - `MCP_TOOL_TIMEOUT_SECONDS` (default: `120`)
-- `APP_STORAGE_SESSIONS_DIRECTORY` (default: `../data/sessions`)
-- The backend exposes a standard Spring Boot Actuator health endpoint at `/actuator/health`.
+- `APP_STORAGE_SESSIONS_DIRECTORY` (default: `data/sessions`)
+- `APP_STORAGE_REPORTS_DIRECTORY` (default: `scripts/reports`)
+- The backend exposes a Spring Boot Actuator health endpoint at `/actuator/health` with app-specific checks for the active model provider, MCP configuration, and local storage directories.
+- The default storage paths are resolved from the project root so they remain stable whether the app is started from `backend/` or from the repository root.
 
 ## Notes
 
