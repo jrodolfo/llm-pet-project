@@ -70,6 +70,28 @@
   font: inherit;
 }
 
+.session-filters {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.session-filters select {
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  padding: 8px 10px;
+  font: inherit;
+  background: #ffffff;
+}
+
+.session-filter-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.88rem;
+  color: #334155;
+}
+
 .session-empty {
   margin: 0;
   color: #64748b;

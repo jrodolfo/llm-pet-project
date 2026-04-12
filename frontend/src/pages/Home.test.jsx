@@ -571,10 +571,66 @@ describe('Home', () => {
     await user.type(screen.getByPlaceholderText(/Search sessions/i), 'bedrock');
 
     await waitFor(() => {
-      expect(listSessions).toHaveBeenLastCalledWith('bedrock');
+      expect(listSessions).toHaveBeenLastCalledWith({
+        query: 'bedrock',
+        provider: '',
+        toolUsage: '',
+        pending: false
+      });
     });
     expect(await screen.findByText('bedrock latency notes')).toBeInTheDocument();
     expect(screen.queryByText('run aws audit')).not.toBeInTheDocument();
+  });
+
+  it('filters sessions by provider, tool usage, and pending state', async () => {
+    listSessions
+      .mockResolvedValueOnce([
+        {
+          sessionId: 'session-1',
+          title: 'run aws audit',
+          summary: 'Audit complete.',
+          model: 'llama3:8b',
+          createdAt: '2026-04-10T10:00:00Z',
+          updatedAt: '2026-04-10T10:01:00Z',
+          messageCount: 2
+        }
+      ])
+      .mockResolvedValue([]);
+
+    render(<Home />);
+    const user = userEvent.setup();
+
+    expect(await screen.findByText('run aws audit')).toBeInTheDocument();
+
+    await user.selectOptions(screen.getByLabelText(/Provider filter/i), 'bedrock');
+    await waitFor(() => {
+      expect(listSessions).toHaveBeenLastCalledWith({
+        query: '',
+        provider: 'bedrock',
+        toolUsage: '',
+        pending: false
+      });
+    });
+
+    await user.selectOptions(screen.getByLabelText(/Tool usage filter/i), 'used');
+    await waitFor(() => {
+      expect(listSessions).toHaveBeenLastCalledWith({
+        query: '',
+        provider: 'bedrock',
+        toolUsage: 'used',
+        pending: false
+      });
+    });
+
+    await user.click(screen.getByRole('checkbox', { name: /Pending only/i }));
+    await waitFor(() => {
+      expect(listSessions).toHaveBeenLastCalledWith({
+        query: '',
+        provider: 'bedrock',
+        toolUsage: 'used',
+        pending: true
+      });
+    });
   });
 
   it('shows a no-match message when search returns no sessions', async () => {

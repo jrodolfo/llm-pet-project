@@ -15,6 +15,9 @@ function Home() {
   const [pendingTool, setPendingTool] = useState(null);
   const [sessions, setSessions] = useState([]);
   const [sessionSearch, setSessionSearch] = useState('');
+  const [providerFilter, setProviderFilter] = useState('');
+  const [toolUsageFilter, setToolUsageFilter] = useState('');
+  const [pendingOnly, setPendingOnly] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [artifactFiles, setArtifactFiles] = useState([]);
@@ -29,11 +32,16 @@ function Home() {
 
   useEffect(() => {
     const timerId = window.setTimeout(() => {
-      loadSessions(sessionSearch);
+      loadSessions({
+        query: sessionSearch,
+        provider: providerFilter,
+        toolUsage: toolUsageFilter,
+        pending: pendingOnly
+      });
     }, 250);
 
     return () => window.clearTimeout(timerId);
-  }, [sessionSearch]);
+  }, [sessionSearch, providerFilter, toolUsageFilter, pendingOnly]);
 
   useEffect(() => {
     window.localStorage.setItem(DEBUG_MODE_STORAGE_KEY, String(showTechnicalDetails));
@@ -70,9 +78,9 @@ function Home() {
     );
   };
 
-  async function loadSessions(query = '') {
+  async function loadSessions(filters = {}) {
     try {
-      const payload = await listSessions(query);
+      const payload = await listSessions(filters);
       setSessions(payload);
     } catch (err) {
       setError(err.message || 'Failed to load sessions.');
@@ -105,7 +113,10 @@ function Home() {
     try {
       const payload = await importSession(file);
       setSessionSearch('');
-      await loadSessions('');
+      setProviderFilter('');
+      setToolUsageFilter('');
+      setPendingOnly(false);
+      await loadSessions({});
       await openSession(payload.sessionId);
     } catch (err) {
       setError(err.message || 'Failed to import session.');
@@ -225,7 +236,12 @@ function Home() {
         setSessionId((current) => payload.sessionId || current);
         setPendingTool(payload.pendingTool || null);
         addMessage('assistant', payload.response || '(No response)', payload.tool || null, payload.toolResult || null, payload.metadata || null);
-        await loadSessions(sessionSearch);
+        await loadSessions({
+          query: sessionSearch,
+          provider: providerFilter,
+          toolUsage: toolUsageFilter,
+          pending: pendingOnly
+        });
       } else {
         addMessage('assistant', '');
         await streamMessage({
@@ -245,7 +261,12 @@ function Home() {
             updateLastAssistant((current) => current + token);
           }
         });
-        await loadSessions(sessionSearch);
+        await loadSessions({
+          query: sessionSearch,
+          provider: providerFilter,
+          toolUsage: toolUsageFilter,
+          pending: pendingOnly
+        });
       }
     } catch (err) {
       setError(err.message || 'Something went wrong.');
@@ -286,8 +307,36 @@ function Home() {
               value={sessionSearch}
               onChange={(event) => setSessionSearch(event.target.value)}
             />
+            <div className="session-filters">
+              <select
+                aria-label="Provider filter"
+                value={providerFilter}
+                onChange={(event) => setProviderFilter(event.target.value)}
+              >
+                <option value="">All providers</option>
+                <option value="ollama">Ollama</option>
+                <option value="bedrock">Bedrock</option>
+              </select>
+              <select
+                aria-label="Tool usage filter"
+                value={toolUsageFilter}
+                onChange={(event) => setToolUsageFilter(event.target.value)}
+              >
+                <option value="">All sessions</option>
+                <option value="used">Used tools</option>
+                <option value="unused">No tools</option>
+              </select>
+              <label className="session-filter-toggle">
+                <input
+                  type="checkbox"
+                  checked={pendingOnly}
+                  onChange={(event) => setPendingOnly(event.target.checked)}
+                />
+                <span>Pending only</span>
+              </label>
+            </div>
             {sessions.length === 0 ? (
-              <p className="session-empty">{sessionSearch ? 'No matching sessions.' : 'No saved chats yet.'}</p>
+              <p className="session-empty">{sessionSearch || providerFilter || toolUsageFilter || pendingOnly ? 'No matching sessions.' : 'No saved chats yet.'}</p>
             ) : null}
             {sessions.map((session) => (
               <div

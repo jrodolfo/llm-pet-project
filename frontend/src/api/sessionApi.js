@@ -6,8 +6,22 @@ async function parseJson(response) {
   }
 }
 
-export async function listSessions(query = '') {
-  const search = query ? `?q=${encodeURIComponent(query)}` : '';
+export async function listSessions({ query = '', provider = '', toolUsage = '', pending = false } = {}) {
+  const params = new URLSearchParams();
+  if (query) {
+    params.set('query', query);
+  }
+  if (provider) {
+    params.set('provider', provider);
+  }
+  if (toolUsage) {
+    params.set('toolUsage', toolUsage);
+  }
+  if (pending) {
+    params.set('pending', 'true');
+  }
+
+  const search = params.toString() ? `?${params.toString()}` : '';
   const response = await fetch(`/api/sessions${search}`);
   if (!response.ok) {
     const payload = await parseJson(response);

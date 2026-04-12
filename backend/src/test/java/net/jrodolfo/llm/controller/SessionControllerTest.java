@@ -79,9 +79,96 @@ class SessionControllerTest {
         saveSession("session-1", "bedrock latency question", Instant.parse("2026-04-10T10:00:00Z"));
         saveSession("session-2", "run aws audit", Instant.parse("2026-04-11T10:00:00Z"));
 
+        mockMvc.perform(get("/api/sessions").queryParam("query", "bedrock"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].sessionId").value("session-1"))
+                .andExpect(jsonPath("$[1]").doesNotExist());
+    }
+
+    @Test
+    void listSessionsStillAcceptsLegacyQParameter() throws Exception {
+        saveSession("session-1", "bedrock latency question", Instant.parse("2026-04-10T10:00:00Z"));
+        saveSession("session-2", "run aws audit", Instant.parse("2026-04-11T10:00:00Z"));
+
         mockMvc.perform(get("/api/sessions").queryParam("q", "bedrock"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].sessionId").value("session-1"))
+                .andExpect(jsonPath("$[1]").doesNotExist());
+    }
+
+    @Test
+    void listSessionsFiltersByProvider() throws Exception {
+        saveSession("bedrock-session", "bedrock question", Instant.parse("2026-04-10T10:00:00Z"));
+        saveSession("ollama-session", "ollama question", Instant.parse("2026-04-11T10:00:00Z"), null, "ollama", false);
+
+        mockMvc.perform(get("/api/sessions").queryParam("provider", "bedrock"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].sessionId").value("bedrock-session"))
+                .andExpect(jsonPath("$[1]").doesNotExist());
+    }
+
+    @Test
+    void listSessionsFiltersByToolUsage() throws Exception {
+        saveSession("used-tool-session", "run aws audit", Instant.parse("2026-04-10T10:00:00Z"));
+        saveSession("unused-tool-session", "plain chat", Instant.parse("2026-04-11T10:00:00Z"), null, "ollama", true);
+
+        mockMvc.perform(get("/api/sessions").queryParam("toolUsage", "unused"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].sessionId").value("unused-tool-session"))
+                .andExpect(jsonPath("$[1]").doesNotExist());
+    }
+
+    @Test
+    void listSessionsFiltersByPendingState() throws Exception {
+        saveSession("pending-session", "check bucket metrics", Instant.parse("2026-04-10T10:00:00Z"), new PendingToolCall(
+                ChatToolRouterService.DecisionType.S3_CLOUDWATCH_REPORT,
+                null,
+                null,
+                null,
+                7,
+                "s3 cloudwatch metrics request",
+                List.of(),
+                List.of("bucket")
+        ));
+        saveSession("complete-session", "run aws audit", Instant.parse("2026-04-11T10:00:00Z"));
+
+        mockMvc.perform(get("/api/sessions").queryParam("pending", "true"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].sessionId").value("pending-session"))
+                .andExpect(jsonPath("$[1]").doesNotExist());
+    }
+
+    @Test
+    void listSessionsCombinesFiltersWithAndSemantics() throws Exception {
+        saveSession("bedrock-pending", "check bucket metrics", Instant.parse("2026-04-10T10:00:00Z"), new PendingToolCall(
+                ChatToolRouterService.DecisionType.S3_CLOUDWATCH_REPORT,
+                null,
+                null,
+                null,
+                7,
+                "s3 cloudwatch metrics request",
+                List.of(),
+                List.of("bucket")
+        ));
+        saveSession("bedrock-complete", "check bucket metrics", Instant.parse("2026-04-11T10:00:00Z"));
+        saveSession("ollama-pending", "check bucket metrics", Instant.parse("2026-04-12T10:00:00Z"), new PendingToolCall(
+                ChatToolRouterService.DecisionType.S3_CLOUDWATCH_REPORT,
+                null,
+                null,
+                null,
+                7,
+                "s3 cloudwatch metrics request",
+                List.of(),
+                List.of("bucket")
+        ), "ollama", false);
+
+        mockMvc.perform(get("/api/sessions")
+                        .queryParam("query", "bucket")
+                        .queryParam("provider", "bedrock")
+                        .queryParam("toolUsage", "used")
+                        .queryParam("pending", "true"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].sessionId").value("bedrock-pending"))
                 .andExpect(jsonPath("$[1]").doesNotExist());
     }
 
@@ -289,6 +376,10 @@ class SessionControllerTest {
     }
 
     private void saveSession(String sessionId, String userMessage, Instant timestamp, PendingToolCall pendingToolCall) {
+        saveSession(sessionId, userMessage, timestamp, pendingToolCall, "bedrock", false);
+    }
+
+    private void saveSession(String sessionId, String userMessage, Instant timestamp, PendingToolCall pendingToolCall, String provider, boolean noTool) {
         ChatSession session = new ChatSession(
                 sessionId,
                 "llama3:8b",
@@ -299,9 +390,18 @@ class SessionControllerTest {
                         new net.jrodolfo.llm.model.ChatSessionMessage(
                                 "assistant",
                                 "done",
-                                new ChatToolMetadata(true, "aws_region_audit", "success", "done"),
+                                noTool ? null : new ChatToolMetadata(true, "aws_region_audit", "success", "done"),
                                 null,
-                                new ModelProviderMetadata("bedrock", "amazon.nova-lite-v1:0", "end_turn", 1, 2, 3, 100L, 90L),
+                                new ModelProviderMetadata(
+                                        provider,
+                                        "bedrock".equals(provider) ? "amazon.nova-lite-v1:0" : "llama3:8b",
+                                        "end_turn",
+                                        1,
+                                        2,
+                                        3,
+                                        100L,
+                                        90L
+                                ),
                                 timestamp.plusSeconds(30)
                         )
                 ),

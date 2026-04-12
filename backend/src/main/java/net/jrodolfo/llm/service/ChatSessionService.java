@@ -3,6 +3,8 @@ package net.jrodolfo.llm.service;
 import net.jrodolfo.llm.dto.ChatSessionDetailResponse;
 import net.jrodolfo.llm.dto.ChatSessionMessageResponse;
 import net.jrodolfo.llm.dto.ChatSessionSummaryResponse;
+import net.jrodolfo.llm.dto.ModelProviderMetadata;
+import net.jrodolfo.llm.dto.ChatToolMetadata;
 import net.jrodolfo.llm.dto.PendingToolCallResponse;
 import net.jrodolfo.llm.model.ChatSession;
 import net.jrodolfo.llm.model.ChatSessionMessage;
@@ -24,9 +26,12 @@ public class ChatSessionService {
         this.chatSessionMetadataService = chatSessionMetadataService;
     }
 
-    public List<ChatSessionSummaryResponse> listSessions(String query) {
+    public List<ChatSessionSummaryResponse> listSessions(String query, String provider, String toolUsage, Boolean pending) {
         return sessionStore.findAll().stream()
                 .filter(session -> matchesQuery(session, query))
+                .filter(session -> matchesProvider(session, provider))
+                .filter(session -> matchesToolUsage(session, toolUsage))
+                .filter(session -> matchesPending(session, pending))
                 .sorted(Comparator.comparing(ChatSession::updatedAt).reversed())
                 .map(this::toSummary)
                 .toList();
@@ -74,6 +79,47 @@ public class ChatSessionService {
                 .filter(content -> content != null)
                 .map(content -> content.toLowerCase(Locale.ROOT))
                 .anyMatch(content -> content.contains(normalizedQuery));
+    }
+
+    private boolean matchesProvider(ChatSession session, String provider) {
+        if (provider == null || provider.isBlank()) {
+            return true;
+        }
+
+        String normalizedProvider = provider.trim().toLowerCase(Locale.ROOT);
+        if (!normalizedProvider.equals("ollama") && !normalizedProvider.equals("bedrock")) {
+            return true;
+        }
+
+        return session.messages().stream()
+                .map(ChatSessionMessage::metadata)
+                .filter(metadata -> metadata != null && metadata.provider() != null)
+                .map(ModelProviderMetadata::provider)
+                .anyMatch(value -> normalizedProvider.equalsIgnoreCase(value));
+    }
+
+    private boolean matchesToolUsage(ChatSession session, String toolUsage) {
+        if (toolUsage == null || toolUsage.isBlank()) {
+            return true;
+        }
+
+        boolean usedTool = session.messages().stream()
+                .map(ChatSessionMessage::tool)
+                .filter(tool -> tool != null)
+                .anyMatch(ChatToolMetadata::used);
+
+        return switch (toolUsage.trim().toLowerCase(Locale.ROOT)) {
+            case "used" -> usedTool;
+            case "unused" -> !usedTool;
+            default -> true;
+        };
+    }
+
+    private boolean matchesPending(ChatSession session, Boolean pending) {
+        if (pending == null) {
+            return true;
+        }
+        return pending == (session.pendingToolCall() != null);
     }
 
     private ChatSessionDetailResponse toDetail(ChatSession session) {

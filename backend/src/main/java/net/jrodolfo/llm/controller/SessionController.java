@@ -44,8 +44,19 @@ public class SessionController {
     }
 
     @GetMapping
-    public List<ChatSessionSummaryResponse> listSessions(@RequestParam(required = false) String q) {
-        return chatSessionService.listSessions(q);
+    public List<ChatSessionSummaryResponse> listSessions(
+            @RequestParam(required = false) String query,
+            @RequestParam(required = false) String q,
+            @RequestParam(required = false) String provider,
+            @RequestParam(required = false) String toolUsage,
+            @RequestParam(required = false) Boolean pending
+    ) {
+        return chatSessionService.listSessions(
+                (query == null || query.isBlank()) ? q : query,
+                provider,
+                toolUsage,
+                pending
+        );
     }
 
     @GetMapping("/{sessionId}")
