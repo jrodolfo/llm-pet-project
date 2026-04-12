@@ -190,10 +190,15 @@ class ChatOrchestratorServiceTest {
         ChatOrchestratorService orchestrator = newOrchestrator(new FakeChatModelProvider(), new FakeMcpService(), sessionStore, "rules");
 
         ChatOrchestratorService.PreparedChat preparedChat = orchestrator.prepareChat("explain recursion", "llama3:8b", null);
-        var persistedSession = orchestrator.completePreparedChat(preparedChat, "streamed response");
+        var persistedSession = orchestrator.completePreparedChat(
+                preparedChat,
+                "streamed response",
+                new ModelProviderMetadata("ollama", "llama3:8b", null, null, null, null, null, null)
+        );
 
         assertEquals(2, persistedSession.messages().size());
         assertEquals("streamed response", persistedSession.messages().get(1).content());
+        assertEquals("ollama", persistedSession.messages().get(1).metadata().provider());
         assertEquals(persistedSession.sessionId(), sessionStore.findById(persistedSession.sessionId()).orElseThrow().sessionId());
     }
 

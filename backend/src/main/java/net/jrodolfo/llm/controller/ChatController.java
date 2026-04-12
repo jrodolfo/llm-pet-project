@@ -77,7 +77,7 @@ public class ChatController {
                     responseBuffer.append(token);
                     sendData(emitter, token);
                 });
-                chatOrchestratorService.completePreparedChat(preparedChat, responseBuffer.toString());
+                chatOrchestratorService.completePreparedChat(preparedChat, responseBuffer.toString(), providerMetadata);
                 sendMetadata(emitter, new ChatStreamMetadata(
                         preparedChat.session().sessionId(),
                         preparedChat.toolMetadata(),

@@ -1,6 +1,7 @@
 package net.jrodolfo.llm.service;
 
 import net.jrodolfo.llm.dto.ChatToolMetadata;
+import net.jrodolfo.llm.dto.ModelProviderMetadata;
 import net.jrodolfo.llm.model.ChatSession;
 import net.jrodolfo.llm.model.ChatSessionMessage;
 import net.jrodolfo.llm.model.PendingToolCall;
@@ -31,22 +32,23 @@ public class ChatMemoryService {
                 .map(session -> session.withUpdatedModel(resolvedModel))
                 .orElseGet(() -> ChatSession.create(sessionId, resolvedModel, now));
 
-        return existingSession.appendMessage("user", userMessage.trim(), null, now);
+        return existingSession.appendMessage("user", userMessage.trim(), null, null, now);
     }
 
     public ChatSession finishTurn(ChatSession session, String assistantMessage, ChatToolMetadata toolMetadata) {
-        return finishTurn(session, assistantMessage, toolMetadata, session.pendingToolCall());
+        return finishTurn(session, assistantMessage, toolMetadata, null, session.pendingToolCall());
     }
 
     public ChatSession finishTurn(
             ChatSession session,
             String assistantMessage,
             ChatToolMetadata toolMetadata,
+            ModelProviderMetadata providerMetadata,
             PendingToolCall pendingToolCall
     ) {
         ChatSession updatedSession = session
                 .withPendingToolCall(pendingToolCall)
-                .appendMessage("assistant", assistantMessage, toolMetadata, Instant.now());
+                .appendMessage("assistant", assistantMessage, toolMetadata, providerMetadata, Instant.now());
         return sessionStore.save(chatSessionMetadataService.enrich(updatedSession));
     }
 

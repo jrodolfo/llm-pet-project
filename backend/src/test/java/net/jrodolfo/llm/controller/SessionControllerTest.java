@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import net.jrodolfo.llm.config.AppStorageProperties;
 import net.jrodolfo.llm.dto.ChatToolMetadata;
+import net.jrodolfo.llm.dto.ModelProviderMetadata;
 import net.jrodolfo.llm.model.ChatSession;
 import net.jrodolfo.llm.model.PendingToolCall;
 import net.jrodolfo.llm.service.ChatToolRouterService;
@@ -69,7 +70,8 @@ class SessionControllerTest {
                 .andExpect(jsonPath("$.sessionId").value("session-1"))
                 .andExpect(jsonPath("$.summary").value("done"))
                 .andExpect(jsonPath("$.messages[0].role").value("user"))
-                .andExpect(jsonPath("$.messages[1].tool.name").value("aws_region_audit"));
+                .andExpect(jsonPath("$.messages[1].tool.name").value("aws_region_audit"))
+                .andExpect(jsonPath("$.messages[1].metadata.provider").value("bedrock"));
     }
 
     @Test
@@ -125,11 +127,12 @@ class SessionControllerTest {
                 timestamp,
                 timestamp.plusSeconds(30),
                 List.of(
-                        new net.jrodolfo.llm.model.ChatSessionMessage("user", userMessage, null, timestamp),
+                        new net.jrodolfo.llm.model.ChatSessionMessage("user", userMessage, null, null, timestamp),
                         new net.jrodolfo.llm.model.ChatSessionMessage(
                                 "assistant",
                                 "done",
                                 new ChatToolMetadata(true, "aws_region_audit", "success", "done"),
+                                new ModelProviderMetadata("bedrock", "amazon.nova-lite-v1:0", "end_turn", 1, 2, 3, 100L, 90L),
                                 timestamp.plusSeconds(30)
                         )
                 ),

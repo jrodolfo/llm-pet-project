@@ -72,6 +72,7 @@ public class ChatSessionService {
                 message.role(),
                 message.content(),
                 message.tool(),
+                message.metadata(),
                 message.timestamp()
         );
     }

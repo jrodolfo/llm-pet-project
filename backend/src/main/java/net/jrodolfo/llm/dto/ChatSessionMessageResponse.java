@@ -6,6 +6,7 @@ public record ChatSessionMessageResponse(
         String role,
         String content,
         ChatToolMetadata tool,
+        ModelProviderMetadata metadata,
         Instant timestamp
 ) {
 }

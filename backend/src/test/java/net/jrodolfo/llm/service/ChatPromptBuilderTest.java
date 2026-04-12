@@ -21,11 +21,12 @@ class ChatPromptBuilderTest {
         String prompt = promptBuilder.build(new ChatPromptBuilder.PromptContext(
                 "what happened in the audit?",
                 List.of(
-                        new ChatSessionMessage("user", "run aws audit", null, Instant.parse("2026-04-10T10:00:00Z")),
+                        new ChatSessionMessage("user", "run aws audit", null, null, Instant.parse("2026-04-10T10:00:00Z")),
                         new ChatSessionMessage(
                                 "assistant",
                                 "Audit complete.",
                                 new ChatToolMetadata(true, "aws_region_audit", "success", "done"),
+                                null,
                                 Instant.parse("2026-04-10T10:01:00Z")
                         )
                 ),

@@ -1,6 +1,7 @@
 package net.jrodolfo.llm.model;
 
 import net.jrodolfo.llm.dto.ChatToolMetadata;
+import net.jrodolfo.llm.dto.ModelProviderMetadata;
 
 import java.time.Instant;
 import java.util.ArrayList;
@@ -24,9 +25,15 @@ public record ChatSession(
         return new ChatSession(sessionId, resolvedModel, createdAt, updatedAt, messages, pendingToolCall, title, summary);
     }
 
-    public ChatSession appendMessage(String role, String content, ChatToolMetadata toolMetadata, Instant timestamp) {
+    public ChatSession appendMessage(
+            String role,
+            String content,
+            ChatToolMetadata toolMetadata,
+            ModelProviderMetadata providerMetadata,
+            Instant timestamp
+    ) {
         List<ChatSessionMessage> updatedMessages = new ArrayList<>(messages);
-        updatedMessages.add(new ChatSessionMessage(role, content, toolMetadata, timestamp));
+        updatedMessages.add(new ChatSessionMessage(role, content, toolMetadata, providerMetadata, timestamp));
         return new ChatSession(sessionId, model, createdAt, timestamp, updatedMessages, pendingToolCall, title, summary);
     }
 

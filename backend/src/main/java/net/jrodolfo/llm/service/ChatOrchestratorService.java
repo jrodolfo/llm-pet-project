@@ -54,7 +54,13 @@ public class ChatOrchestratorService {
                 preparedChat.session().sessionId(),
                 preparedChat.pendingTool()
         );
-        chatMemoryService.finishTurn(preparedChat.session(), response.response(), response.tool());
+        chatMemoryService.finishTurn(
+                preparedChat.session(),
+                response.response(),
+                response.tool(),
+                response.metadata(),
+                preparedChat.session().pendingToolCall()
+        );
         return response;
     }
 
@@ -71,7 +77,7 @@ public class ChatOrchestratorService {
                     decision.clarification()
             );
             PendingToolCall pendingToolCall = pendingToolCallForDecision(decision);
-            ChatSession persistedSession = chatMemoryService.finishTurn(session, decision.clarification(), metadata, pendingToolCall);
+            ChatSession persistedSession = chatMemoryService.finishTurn(session, decision.clarification(), metadata, null, pendingToolCall);
             return PreparedChat.forImmediateResponse(new ChatResponse(
                     decision.clarification(),
                     resolvedModel,
@@ -113,6 +119,7 @@ public class ChatOrchestratorService {
                     session,
                     buildFailureMessage(decision, ex.getMessage()),
                     metadata,
+                    null,
                     null
             );
             ChatResponse fallbackResponse = new ChatResponse(
@@ -127,11 +134,21 @@ public class ChatOrchestratorService {
         }
     }
 
-    public ChatSession completePreparedChat(PreparedChat preparedChat, String assistantResponse) {
+    public ChatSession completePreparedChat(
+            PreparedChat preparedChat,
+            String assistantResponse,
+            net.jrodolfo.llm.dto.ModelProviderMetadata providerMetadata
+    ) {
         if (preparedChat.immediateResponse() != null || preparedChat.session() == null) {
             throw new IllegalArgumentException("Only prompt-based prepared chats can be completed.");
         }
-        return chatMemoryService.finishTurn(preparedChat.session(), assistantResponse, preparedChat.toolMetadata());
+        return chatMemoryService.finishTurn(
+                preparedChat.session(),
+                assistantResponse,
+                preparedChat.toolMetadata(),
+                providerMetadata,
+                preparedChat.session().pendingToolCall()
+        );
     }
 
     private ChatToolRouterService.ToolDecision resolveDecision(
