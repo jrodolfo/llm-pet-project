@@ -52,3 +52,18 @@ export async function exportSession(sessionId, format = 'json') {
     filename: filenameFromDisposition(response.headers.get('Content-Disposition'), sessionId, format)
   };
 }
+
+export async function importSession(file) {
+  const formData = new FormData();
+  formData.append('file', file);
+
+  const response = await fetch('/api/sessions/import', {
+    method: 'POST',
+    body: formData
+  });
+  if (!response.ok) {
+    const payload = await parseJson(response);
+    throw new Error(payload.error || 'Failed to import session.');
+  }
+  return response.json();
+}

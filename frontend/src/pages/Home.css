@@ -30,6 +30,16 @@
   gap: 10px;
 }
 
+.session-sidebar-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.session-import-input {
+  display: none;
+}
+
 .session-sidebar-header h2 {
   margin: 0;
   font-size: 1rem;
@@ -306,6 +316,16 @@
 
   .session-sidebar {
     max-height: none;
+  }
+
+  .session-sidebar-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .session-sidebar-actions {
+    width: 100%;
+    flex-wrap: wrap;
   }
 
   .chat-card {

@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { sendMessage, streamMessage } from '../api/chatApi';
-import { deleteSession, exportSession, getSession, listSessions } from '../api/sessionApi';
+import { deleteSession, exportSession, getSession, importSession, listSessions } from '../api/sessionApi';
 import ChatWindow from '../components/ChatWindow';
 import InputBox from '../components/InputBox';
 import './Home.css';
@@ -8,6 +8,7 @@ import './Home.css';
 const DEBUG_MODE_STORAGE_KEY = 'llm-pet-project.debug-mode';
 
 function Home() {
+  const importInputRef = useRef(null);
   const [messages, setMessages] = useState([]);
   const [sessionId, setSessionId] = useState(null);
   const [pendingTool, setPendingTool] = useState(null);
@@ -73,6 +74,30 @@ function Home() {
     setPendingTool(null);
     setMessages([]);
     setError('');
+  };
+
+  const handleImportClick = () => {
+    importInputRef.current?.click();
+  };
+
+  const handleImportChange = async (event) => {
+    const [file] = Array.from(event.target.files || []);
+    event.target.value = '';
+    if (!file) {
+      return;
+    }
+
+    setError('');
+    setLoading(true);
+    try {
+      const payload = await importSession(file);
+      await loadSessions();
+      await openSession(payload.sessionId);
+    } catch (err) {
+      setError(err.message || 'Failed to import session.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const openSession = async (targetSessionId) => {
@@ -177,9 +202,22 @@ function Home() {
         <aside className="session-sidebar">
           <div className="session-sidebar-header">
             <h2>Sessions</h2>
-            <button type="button" onClick={startNewChat} disabled={loading}>
-              New chat
-            </button>
+            <div className="session-sidebar-actions">
+              <input
+                ref={importInputRef}
+                type="file"
+                accept="application/json,.json"
+                className="session-import-input"
+                aria-label="Import session file"
+                onChange={handleImportChange}
+              />
+              <button type="button" onClick={handleImportClick} disabled={loading}>
+                Import JSON
+              </button>
+              <button type="button" onClick={startNewChat} disabled={loading}>
+                New chat
+              </button>
+            </div>
           </div>
           <div className="session-list">
             {sessions.length === 0 ? <p className="session-empty">No saved chats yet.</p> : null}

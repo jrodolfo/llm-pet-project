@@ -9,6 +9,7 @@ import net.jrodolfo.llm.model.ChatSession;
 import net.jrodolfo.llm.model.PendingToolCall;
 import net.jrodolfo.llm.service.ChatToolRouterService;
 import net.jrodolfo.llm.service.ChatSessionExportService;
+import net.jrodolfo.llm.service.ChatSessionImportService;
 import net.jrodolfo.llm.service.ChatSessionMetadataService;
 import net.jrodolfo.llm.service.ChatSessionService;
 import net.jrodolfo.llm.service.FileChatSessionStore;
@@ -18,6 +19,7 @@ import org.junit.jupiter.api.io.TempDir;
 import org.springframework.http.converter.ByteArrayHttpMessageConverter;
 import org.springframework.http.converter.StringHttpMessageConverter;
 import org.springframework.http.converter.json.MappingJackson2HttpMessageConverter;
+import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
@@ -27,6 +29,7 @@ import java.util.List;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -43,11 +46,13 @@ class SessionControllerTest {
         ObjectMapper objectMapper = new ObjectMapper();
         objectMapper.registerModule(new JavaTimeModule());
         sessionStore = new FileChatSessionStore(objectMapper, new AppStorageProperties(tempDir.resolve("sessions").toString()));
-        ChatSessionService sessionService = new ChatSessionService(sessionStore, new ChatSessionMetadataService());
+        ChatSessionMetadataService metadataService = new ChatSessionMetadataService();
+        ChatSessionService sessionService = new ChatSessionService(sessionStore, metadataService);
         ChatSessionExportService exportService = new ChatSessionExportService();
+        ChatSessionImportService importService = new ChatSessionImportService(objectMapper, sessionStore, metadataService);
 
         mockMvc = MockMvcBuilders
-                .standaloneSetup(new SessionController(sessionService, exportService))
+                .standaloneSetup(new SessionController(sessionService, exportService, importService))
                 .setMessageConverters(
                         new MappingJackson2HttpMessageConverter(objectMapper),
                         new StringHttpMessageConverter(),
@@ -153,6 +158,101 @@ class SessionControllerTest {
                         .string(org.hamcrest.Matchers.containsString("provider: bedrock")))
                 .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.header()
                         .string("Content-Disposition", "attachment; filename=\"session-1.md\""));
+    }
+
+    @Test
+    void importSessionStoresJsonExport() throws Exception {
+        String json = """
+                {
+                  "sessionId": "imported-session",
+                  "title": "imported title",
+                  "summary": "imported summary",
+                  "model": "llama3:8b",
+                  "createdAt": "2026-04-10T10:00:00Z",
+                  "updatedAt": "2026-04-10T10:01:00Z",
+                  "pendingTool": null,
+                  "messages": [
+                    {
+                      "role": "user",
+                      "content": "run aws audit",
+                      "tool": null,
+                      "metadata": null,
+                      "timestamp": "2026-04-10T10:00:00Z"
+                    },
+                    {
+                      "role": "assistant",
+                      "content": "done",
+                      "tool": {
+                        "used": true,
+                        "name": "aws_region_audit",
+                        "status": "success",
+                        "summary": "done"
+                      },
+                      "metadata": {
+                        "provider": "bedrock",
+                        "modelId": "amazon.nova-lite-v1:0",
+                        "stopReason": "end_turn",
+                        "inputTokens": 1,
+                        "outputTokens": 2,
+                        "totalTokens": 3,
+                        "durationMs": 100,
+                        "providerLatencyMs": 90
+                      },
+                      "timestamp": "2026-04-10T10:01:00Z"
+                    }
+                  ]
+                }
+                """;
+        MockMultipartFile file = new MockMultipartFile("file", "session.json", "application/json", json.getBytes());
+
+        mockMvc.perform(multipart("/api/sessions/import").file(file))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.sessionId").value("imported-session"))
+                .andExpect(jsonPath("$.title").value("imported title"))
+                .andExpect(jsonPath("$.idChanged").value(false))
+                .andExpect(jsonPath("$.messageCount").value(2));
+
+        mockMvc.perform(get("/api/sessions/imported-session"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.messages[1].metadata.provider").value("bedrock"));
+    }
+
+    @Test
+    void importSessionGeneratesNewIdOnCollision() throws Exception {
+        saveSession("session-1", "existing session", Instant.parse("2026-04-10T10:00:00Z"));
+        String json = """
+                {
+                  "sessionId": "session-1",
+                  "title": "imported title",
+                  "summary": "imported summary",
+                  "model": "llama3:8b",
+                  "messages": [
+                    {
+                      "role": "user",
+                      "content": "new content",
+                      "tool": null,
+                      "metadata": null,
+                      "timestamp": "2026-04-10T10:02:00Z"
+                    }
+                  ]
+                }
+                """;
+        MockMultipartFile file = new MockMultipartFile("file", "collision.json", "application/json", json.getBytes());
+
+        mockMvc.perform(multipart("/api/sessions/import").file(file))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.sessionId").isNotEmpty())
+                .andExpect(jsonPath("$.sessionId").value(org.hamcrest.Matchers.not("session-1")))
+                .andExpect(jsonPath("$.idChanged").value(true));
+    }
+
+    @Test
+    void importSessionRejectsInvalidJson() throws Exception {
+        MockMultipartFile file = new MockMultipartFile("file", "invalid.json", "application/json", "{".getBytes());
+
+        mockMvc.perform(multipart("/api/sessions/import").file(file))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("Import file is not valid JSON."));
     }
 
     @Test

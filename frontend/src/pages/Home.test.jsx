@@ -11,11 +11,12 @@ vi.mock('../api/sessionApi', () => ({
   listSessions: vi.fn(),
   getSession: vi.fn(),
   deleteSession: vi.fn(),
-  exportSession: vi.fn()
+  exportSession: vi.fn(),
+  importSession: vi.fn()
 }));
 
 import { sendMessage, streamMessage } from '../api/chatApi';
-import { deleteSession, exportSession, getSession, listSessions } from '../api/sessionApi';
+import { deleteSession, exportSession, getSession, importSession, listSessions } from '../api/sessionApi';
 
 describe('Home', () => {
   beforeEach(() => {
@@ -24,6 +25,13 @@ describe('Home', () => {
     exportSession.mockResolvedValue({
       blob: new Blob(['{"sessionId":"session-1"}'], { type: 'application/json' }),
       filename: 'session-1.json'
+    });
+    importSession.mockResolvedValue({
+      sessionId: 'imported-session',
+      title: 'imported title',
+      summary: 'imported summary',
+      idChanged: false,
+      messageCount: 2
     });
     listSessions.mockResolvedValue([]);
     getSession.mockResolvedValue({
@@ -415,5 +423,48 @@ describe('Home', () => {
 
     expect(await screen.findByText('run aws audit')).toBeInTheDocument();
     expect(screen.getByText(/Audit completed successfully for us-east-2 sts./i)).toBeInTheDocument();
+  });
+
+  it('imports a json session and opens it', async () => {
+    getSession.mockResolvedValueOnce({
+      sessionId: 'imported-session',
+      title: 'imported title',
+      summary: 'imported summary',
+      model: 'llama3:8b',
+      createdAt: '2026-04-10T10:00:00Z',
+      updatedAt: '2026-04-10T10:01:00Z',
+      pendingTool: null,
+      messages: [
+        { role: 'user', content: 'imported question', tool: null, metadata: null, timestamp: '2026-04-10T10:00:00Z' },
+        { role: 'assistant', content: 'imported answer', tool: null, metadata: null, timestamp: '2026-04-10T10:01:00Z' }
+      ]
+    });
+
+    render(<Home />);
+    const user = userEvent.setup();
+    const fileInput = screen.getByLabelText(/Import session file/i);
+    const file = new File(
+      ['{"sessionId":"imported-session","messages":[{"role":"user","content":"hello"}]}'],
+      'session.json',
+      { type: 'application/json' }
+    );
+
+    await user.upload(fileInput, file);
+
+    expect(importSession).toHaveBeenCalledWith(file);
+    expect(await screen.findByText('imported answer')).toBeInTheDocument();
+  });
+
+  it('shows an error when json import fails', async () => {
+    importSession.mockRejectedValueOnce(new Error('Import file is not valid JSON.'));
+
+    render(<Home />);
+    const user = userEvent.setup();
+    const fileInput = screen.getByLabelText(/Import session file/i);
+    const file = new File(['{'], 'invalid.json', { type: 'application/json' });
+
+    await user.upload(fileInput, file);
+
+    expect(await screen.findByText(/Import file is not valid JSON./i)).toBeInTheDocument();
   });
 });
