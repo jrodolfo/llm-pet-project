@@ -32,6 +32,9 @@ class ActuatorSupportTest {
                 .andExpect(jsonPath("$.app.name").value("llm-pet-project-backend"))
                 .andExpect(jsonPath("$.runtime.provider").exists())
                 .andExpect(jsonPath("$.runtime.sessionsDirectory").exists())
+                .andExpect(jsonPath("$.runtime.mcp.enabled").exists())
+                .andExpect(jsonPath("$.runtime.mcp.command").exists())
+                .andExpect(jsonPath("$.runtime.mcp.workingDirectory").exists())
                 .andExpect(jsonPath("$.docs.swaggerUi").value("/swagger-ui/index.html"));
     }
 }

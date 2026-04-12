@@ -78,7 +78,7 @@ OpenAPI and Swagger UI:
 - `http://localhost:8080/actuator/health`
 
 The Swagger UI now excludes `/actuator/**` endpoints so the generated API docs stay focused on the application API.
-`GET /actuator` now redirects to `/actuator/health`, and `GET /actuator/info` returns backend/runtime details instead of an empty payload.
+`GET /actuator` now redirects to `/actuator/health`, and `GET /actuator/info` returns backend/runtime details including an explicit MCP section with enablement, command, working directory, and configuration status.
 
 ### Backend API
 
@@ -236,7 +236,7 @@ Compose uses `host.docker.internal:11434` so backend container can reach host Ol
 - `BEDROCK_MODEL_ID` (default: empty)
 - `APP_TOOLS_ROUTING_MODE` (default: `hybrid`)
 - `APP_TOOLS_LOG_PLANNER` (default: `false`)
-- `MCP_ENABLED` (default: `false`)
+- `MCP_ENABLED` (default: `true`)
 - `MCP_COMMAND` (default: `node`)
 - `MCP_WORKING_DIRECTORY` (default: `../mcp`)
 - `MCP_ARG_1` (default: `dist/index.js`)
@@ -255,7 +255,7 @@ Compose uses `host.docker.internal:11434` so backend container can reach host Ol
 - The Bedrock provider now supports both normal chat requests and the `/api/chat/stream` SSE path.
 - Tool routing is now LLM-assisted by default in `hybrid` mode, with the older rule-based router kept as a fallback.
 - Set `APP_TOOLS_LOG_PLANNER=true` to log raw planner output, parsed planner decisions, and fallback usage during local evaluation.
-- The backend can call MCP tools only when `MCP_ENABLED=true`.
+- MCP is enabled by default. Set `MCP_ENABLED=false` only when you want to run the backend without MCP tool integration.
 - The MCP server uses local `stdio` transport and is designed for private, local execution.
 - The `scripts/reports/` tree contains generated local artifacts and is intentionally reused by both the shell tools and the MCP wrappers.
 - Conversation history is stored locally as JSON files under [`data/sessions/`](./data/sessions).

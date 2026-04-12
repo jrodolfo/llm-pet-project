@@ -54,9 +54,9 @@ public class ActuatorInfoContributor implements InfoContributor {
     private Map<String, Object> runtimeDetails() {
         Map<String, Object> details = new LinkedHashMap<>();
         details.put("provider", appModelProperties.provider());
-        details.put("mcpEnabled", mcpProperties.enabled());
         details.put("sessionsDirectory", appStorageProperties.resolvedSessionsDirectory().toString());
         details.put("reportsDirectory", appStorageProperties.resolvedReportsDirectory().toString());
+        details.put("mcp", mcpDetails());
 
         if ("bedrock".equalsIgnoreCase(appModelProperties.provider())) {
             details.put("modelId", bedrockProperties.modelId());
@@ -65,6 +65,22 @@ public class ActuatorInfoContributor implements InfoContributor {
             details.put("modelId", ollamaProperties.defaultModel());
             details.put("baseUrl", ollamaProperties.baseUrl());
         }
+        return details;
+    }
+
+    private Map<String, Object> mcpDetails() {
+        Map<String, Object> details = new LinkedHashMap<>();
+        details.put("enabled", mcpProperties.enabled());
+        details.put("command", mcpProperties.command());
+        details.put("workingDirectory", mcpProperties.resolvedWorkingDirectory().toString());
+        details.put("workingDirectoryExists", mcpProperties.resolvedWorkingDirectory().toFile().isDirectory());
+        details.put("startupTimeoutSeconds", mcpProperties.startupTimeoutSeconds());
+        details.put("toolTimeoutSeconds", mcpProperties.toolTimeoutSeconds());
+        details.put("configured",
+                mcpProperties.command() != null
+                        && !mcpProperties.command().isBlank()
+                        && mcpProperties.resolvedWorkingDirectory().toFile().isDirectory());
+        details.put("status", mcpProperties.enabled() ? "enabled" : "disabled");
         return details;
     }
 }

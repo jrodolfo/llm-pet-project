@@ -40,10 +40,10 @@ bedrock:
   model-id: ${BEDROCK_MODEL_ID:}
 
 mcp:
-  enabled: ${MCP_ENABLED:false}
+  enabled: ${MCP_ENABLED:true}
   command: ${MCP_COMMAND:node}
   args:
     - ${MCP_ARG_1:dist/index.js}
-  working-directory: ${MCP_WORKING_DIRECTORY:../mcp}
+  working-directory: ${MCP_WORKING_DIRECTORY:mcp}
   startup-timeout-seconds: ${MCP_STARTUP_TIMEOUT_SECONDS:10}
   tool-timeout-seconds: ${MCP_TOOL_TIMEOUT_SECONDS:120}

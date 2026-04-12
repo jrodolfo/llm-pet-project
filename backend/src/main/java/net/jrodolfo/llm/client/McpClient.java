@@ -111,7 +111,7 @@ public class McpClient {
         command.addAll(properties.args());
 
         ProcessBuilder processBuilder = new ProcessBuilder(command);
-        processBuilder.directory(Path.of(properties.workingDirectory()).toFile());
+        processBuilder.directory(properties.resolvedWorkingDirectory().toFile());
 
         try {
             Process process = processBuilder.start();

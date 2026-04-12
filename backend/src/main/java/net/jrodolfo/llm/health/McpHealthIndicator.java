@@ -19,33 +19,40 @@ public class McpHealthIndicator implements HealthIndicator {
 
     @Override
     public Health health() {
+        boolean commandConfigured = mcpProperties.command() != null && !mcpProperties.command().isBlank();
+        Path workingDirectory = mcpProperties.resolvedWorkingDirectory();
+        boolean workingDirectoryExists = Files.isDirectory(workingDirectory);
+
         if (!mcpProperties.enabled()) {
             return Health.up()
                     .withDetail("enabled", false)
                     .withDetail("status", "disabled")
+                    .withDetail("command", mcpProperties.command())
+                    .withDetail("commandConfigured", commandConfigured)
+                    .withDetail("workingDirectory", workingDirectory.toString())
+                    .withDetail("workingDirectoryExists", workingDirectoryExists)
                     .build();
         }
-
-        boolean commandConfigured = mcpProperties.command() != null && !mcpProperties.command().isBlank();
-        Path workingDirectory = mcpProperties.workingDirectory() == null || mcpProperties.workingDirectory().isBlank()
-                ? null
-                : Path.of(mcpProperties.workingDirectory()).toAbsolutePath().normalize();
-        boolean workingDirectoryExists = workingDirectory != null && Files.isDirectory(workingDirectory);
 
         if (!commandConfigured || !workingDirectoryExists) {
             return Health.down()
                     .withDetail("enabled", true)
+                    .withDetail("status", "misconfigured")
+                    .withDetail("command", mcpProperties.command())
                     .withDetail("commandConfigured", commandConfigured)
-                    .withDetail("workingDirectory", workingDirectory == null ? "" : workingDirectory.toString())
+                    .withDetail("workingDirectory", workingDirectory.toString())
                     .withDetail("workingDirectoryExists", workingDirectoryExists)
                     .build();
         }
 
         return Health.up()
                 .withDetail("enabled", true)
+                .withDetail("status", "enabled")
                 .withDetail("command", mcpProperties.command())
                 .withDetail("workingDirectory", workingDirectory.toString())
+                .withDetail("workingDirectoryExists", true)
                 .withDetail("toolTimeoutSeconds", mcpProperties.toolTimeoutSeconds())
+                .withDetail("startupTimeoutSeconds", mcpProperties.startupTimeoutSeconds())
                 .build();
     }
 }

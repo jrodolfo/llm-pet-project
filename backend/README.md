@@ -22,7 +22,7 @@ mvn spring-boot:run
 - `http://localhost:8080/actuator/health`
 
 Swagger UI excludes `/actuator/**` endpoints so the generated docs stay focused on the application API.
-`GET /actuator` redirects to `/actuator/health`, and `GET /actuator/info` returns backend/runtime details.
+`GET /actuator` redirects to `/actuator/health`, and `GET /actuator/info` returns backend/runtime details including explicit MCP configuration details.
 
 ## Endpoints
 
@@ -84,7 +84,7 @@ Relevant environment variables:
 - `BEDROCK_MODEL_ID` default: empty
 - `APP_TOOLS_ROUTING_MODE` default: `hybrid`
 - `APP_TOOLS_LOG_PLANNER` default: `false`
-- `MCP_ENABLED`
+- `MCP_ENABLED` default: `true`
 - `MCP_COMMAND` default: `node`
 - `MCP_WORKING_DIRECTORY` default: `../mcp`
 - `MCP_ARG_1` default: `dist/index.js`
