@@ -4,7 +4,7 @@ import java.util.function.Consumer;
 
 public interface BedrockRuntimeGateway {
 
-    String converse(String prompt, String modelId);
+    ModelProviderReply converse(String prompt, String modelId);
 
     void converseStream(String prompt, String modelId, Consumer<String> chunkConsumer);
 }

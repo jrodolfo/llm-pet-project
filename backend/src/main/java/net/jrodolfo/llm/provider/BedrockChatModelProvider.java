@@ -1,6 +1,7 @@
 package net.jrodolfo.llm.provider;
 
 import net.jrodolfo.llm.client.BedrockRuntimeGateway;
+import net.jrodolfo.llm.client.ModelProviderReply;
 import net.jrodolfo.llm.client.ModelProviderException;
 import net.jrodolfo.llm.config.BedrockProperties;
 import net.jrodolfo.llm.dto.ChatResponse;
@@ -29,8 +30,8 @@ public class BedrockChatModelProvider implements ChatModelProvider {
     ) {
         String normalizedMessage = message.trim();
         String resolvedModel = resolveModel(model);
-        String response = bedrockRuntimeGateway.converse(normalizedMessage, resolvedModel);
-        return new ChatResponse(response, resolvedModel, toolMetadata, sessionId, pendingTool);
+        ModelProviderReply reply = bedrockRuntimeGateway.converse(normalizedMessage, resolvedModel);
+        return new ChatResponse(reply.text(), resolvedModel, toolMetadata, sessionId, pendingTool, reply.metadata());
     }
 
     @Override

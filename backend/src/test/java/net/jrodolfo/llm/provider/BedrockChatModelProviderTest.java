@@ -1,9 +1,11 @@
 package net.jrodolfo.llm.provider;
 
 import net.jrodolfo.llm.client.BedrockRuntimeGateway;
+import net.jrodolfo.llm.client.ModelProviderReply;
 import net.jrodolfo.llm.client.ModelProviderException;
 import net.jrodolfo.llm.config.BedrockProperties;
 import net.jrodolfo.llm.dto.ChatResponse;
+import net.jrodolfo.llm.dto.ModelProviderMetadata;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
@@ -26,6 +28,8 @@ class BedrockChatModelProviderTest {
 
         assertEquals("amazon.nova-lite-v1:0", response.model());
         assertEquals("bedrock response", response.response());
+        assertEquals("bedrock", response.metadata().provider());
+        assertEquals("amazon.nova-lite-v1:0", response.metadata().modelId());
         assertEquals("hello from bedrock", gateway.lastPrompt);
         assertEquals("amazon.nova-lite-v1:0", gateway.lastModelId);
     }
@@ -63,10 +67,13 @@ class BedrockChatModelProviderTest {
         private String lastStreamModelId;
 
         @Override
-        public String converse(String prompt, String modelId) {
+        public ModelProviderReply converse(String prompt, String modelId) {
             this.lastPrompt = prompt;
             this.lastModelId = modelId;
-            return "bedrock response";
+            return new ModelProviderReply(
+                    "bedrock response",
+                    new ModelProviderMetadata("bedrock", modelId, "end_turn", 10, 20, 30, 400L, 390L)
+            );
         }
 
         @Override

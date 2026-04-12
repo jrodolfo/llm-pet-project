@@ -5,6 +5,7 @@ public record ChatResponse(
         String model,
         ChatToolMetadata tool,
         String sessionId,
-        PendingToolCallResponse pendingTool
+        PendingToolCallResponse pendingTool,
+        ModelProviderMetadata metadata
 ) {
 }

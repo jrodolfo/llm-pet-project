@@ -1,12 +1,19 @@
 package net.jrodolfo.llm.client;
 
 import org.junit.jupiter.api.Test;
+import net.jrodolfo.llm.dto.ModelProviderMetadata;
 import software.amazon.awssdk.services.bedrockruntime.BedrockRuntimeAsyncClient;
 import software.amazon.awssdk.services.bedrockruntime.BedrockRuntimeClient;
+import software.amazon.awssdk.services.bedrockruntime.model.ConverseMetrics;
+import software.amazon.awssdk.services.bedrockruntime.model.ConverseOutput;
+import software.amazon.awssdk.services.bedrockruntime.model.ConverseResponse;
 import software.amazon.awssdk.services.bedrockruntime.model.ContentBlockDelta;
 import software.amazon.awssdk.services.bedrockruntime.model.ContentBlockDeltaEvent;
 import software.amazon.awssdk.services.bedrockruntime.model.ConverseStreamRequest;
 import software.amazon.awssdk.services.bedrockruntime.model.ConverseStreamResponseHandler;
+import software.amazon.awssdk.services.bedrockruntime.model.Message;
+import software.amazon.awssdk.services.bedrockruntime.model.StopReason;
+import software.amazon.awssdk.services.bedrockruntime.model.TokenUsage;
 
 import java.lang.reflect.Proxy;
 import java.lang.reflect.Method;
@@ -18,6 +25,33 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class AwsSdkBedrockRuntimeGatewayTest {
+
+    @Test
+    void converseMapsBedrockMetadata() {
+        BedrockRuntimeClient syncClient = syncClient(ConverseResponse.builder()
+                .stopReason(StopReason.END_TURN)
+                .usage(TokenUsage.builder().inputTokens(12).outputTokens(34).totalTokens(46).build())
+                .metrics(ConverseMetrics.builder().latencyMs(321L).build())
+                .output(ConverseOutput.builder()
+                        .message(Message.builder()
+                                .content(software.amazon.awssdk.services.bedrockruntime.model.ContentBlock.fromText("hello from bedrock"))
+                                .build())
+                        .build())
+                .build());
+        AwsSdkBedrockRuntimeGateway gateway = new AwsSdkBedrockRuntimeGateway(syncClient, asyncClient((request, handler) -> CompletableFuture.completedFuture(null)));
+
+        ModelProviderReply reply = gateway.converse("prompt", "amazon.nova-lite-v1:0");
+
+        assertEquals("hello from bedrock", reply.text());
+        ModelProviderMetadata metadata = reply.metadata();
+        assertEquals("bedrock", metadata.provider());
+        assertEquals("amazon.nova-lite-v1:0", metadata.modelId());
+        assertEquals("end_turn", metadata.stopReason());
+        assertEquals(12, metadata.inputTokens());
+        assertEquals(34, metadata.outputTokens());
+        assertEquals(46, metadata.totalTokens());
+        assertEquals(321L, metadata.providerLatencyMs());
+    }
 
     @Test
     void forwardChunkAddsNonBlankText() throws Exception {
@@ -69,10 +103,19 @@ class AwsSdkBedrockRuntimeGatewayTest {
     }
 
     private BedrockRuntimeClient syncClient() {
+        return syncClient(null);
+    }
+
+    private BedrockRuntimeClient syncClient(ConverseResponse converseResponse) {
         return (BedrockRuntimeClient) Proxy.newProxyInstance(
                 BedrockRuntimeClient.class.getClassLoader(),
                 new Class<?>[]{BedrockRuntimeClient.class},
-                (proxy, method, args) -> defaultValue(method.getReturnType())
+                (proxy, method, args) -> {
+                    if ("converse".equals(method.getName())) {
+                        return converseResponse;
+                    }
+                    return defaultValue(method.getReturnType());
+                }
         );
     }
 

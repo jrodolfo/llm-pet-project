@@ -92,7 +92,11 @@ Response:
   "response": "...",
   "model": "llama3:8b",
   "sessionId": "generated-or-reused-session-id",
-  "tool": null
+  "tool": null,
+  "metadata": {
+    "provider": "ollama",
+    "modelId": "llama3:8b"
+  }
 }
 ```
 
@@ -220,6 +224,7 @@ Compose uses `host.docker.internal:11434` so backend container can reach host Ol
 - The `scripts/reports/` tree contains generated local artifacts and is intentionally reused by both the shell tools and the MCP wrappers.
 - Conversation history is stored locally as JSON files under [`data/sessions/`](./data/sessions).
 - The frontend reuses the returned `sessionId` automatically so follow-up prompts keep local context.
+- `POST /api/chat` responses now include optional provider metadata. For Bedrock this includes stop reason, token usage, duration, and provider latency when available.
 - Session titles in the sidebar are derived from the first user message in each stored session.
 - Session summaries are generated locally from the saved conversation so the sidebar is easier to scan.
 - The backend can use session memory to complete tool clarifications across turns, for example asking for a missing bucket name and using your next reply to run the pending tool call.
@@ -238,7 +243,7 @@ Compose uses `host.docker.internal:11434` so backend container can reach host Ol
 - Add authentication
 - Improve prompt templates/system prompts
 - Add metrics and tracing
-- Enrich Bedrock response metadata in chat responses
+- Surface provider metadata in the frontend when useful
 
 ## Contact
 

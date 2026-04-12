@@ -338,11 +338,11 @@ class ChatOrchestratorServiceTest {
                 } else {
                     plannerResponse = "{\"action\":\"none\",\"toolName\":null,\"arguments\":{},\"missingFields\":[],\"reason\":\"No supported tool is required.\"}";
                 }
-                return new ChatResponse(plannerResponse, resolveModel(model), null, null, null);
+                return new ChatResponse(plannerResponse, resolveModel(model), null, null, null, null);
             }
             this.lastPrompt = message;
             this.generateCalled = true;
-            return new ChatResponse("plain response", resolveModel(model), toolMetadata, sessionId, pendingTool);
+            return new ChatResponse("plain response", resolveModel(model), toolMetadata, sessionId, pendingTool, null);
         }
 
         @Override

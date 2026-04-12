@@ -1,5 +1,6 @@
 package net.jrodolfo.llm.client;
 
+import net.jrodolfo.llm.dto.ModelProviderMetadata;
 import software.amazon.awssdk.core.exception.SdkException;
 import software.amazon.awssdk.services.bedrockruntime.BedrockRuntimeAsyncClient;
 import software.amazon.awssdk.services.bedrockruntime.BedrockRuntimeClient;
@@ -11,8 +12,10 @@ import software.amazon.awssdk.services.bedrockruntime.model.ConverseStreamReques
 import software.amazon.awssdk.services.bedrockruntime.model.ConverseStreamResponseHandler;
 import software.amazon.awssdk.services.bedrockruntime.model.ConversationRole;
 import software.amazon.awssdk.services.bedrockruntime.model.Message;
+import software.amazon.awssdk.services.bedrockruntime.model.TokenUsage;
 import software.amazon.awssdk.services.bedrockruntime.model.ValidationException;
 
+import java.time.Instant;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.function.Consumer;
@@ -32,8 +35,10 @@ public class AwsSdkBedrockRuntimeGateway implements BedrockRuntimeGateway {
     }
 
     @Override
-    public String converse(String prompt, String modelId) {
+    public ModelProviderReply converse(String prompt, String modelId) {
         try {
+            Instant requestedAt = Instant.now();
+            long startedAt = System.currentTimeMillis();
             ConverseRequest request = buildConverseRequest(prompt, modelId);
             ConverseResponse response = bedrockRuntimeClient.converse(request);
             if (response.output() == null || response.output().message() == null || response.output().message().content() == null) {
@@ -46,7 +51,17 @@ public class AwsSdkBedrockRuntimeGateway implements BedrockRuntimeGateway {
             if (output.isBlank()) {
                 throw new ModelProviderException("Bedrock response did not contain text output.");
             }
-            return output;
+            ModelProviderMetadata metadata = new ModelProviderMetadata(
+                    "bedrock",
+                    modelId,
+                    response.stopReason() != null ? response.stopReasonAsString() : null,
+                    response.usage() != null ? response.usage().inputTokens() : null,
+                    response.usage() != null ? response.usage().outputTokens() : null,
+                    response.usage() != null ? response.usage().totalTokens() : null,
+                    System.currentTimeMillis() - startedAt,
+                    response.metrics() != null ? response.metrics().latencyMs() : null
+            );
+            return new ModelProviderReply(output, metadata);
         } catch (ValidationException ex) {
             throw new ModelProviderException("Bedrock request validation failed: " + ex.getMessage(), ex);
         } catch (RuntimeException ex) {

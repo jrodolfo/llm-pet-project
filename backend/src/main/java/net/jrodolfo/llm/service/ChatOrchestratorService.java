@@ -77,7 +77,8 @@ public class ChatOrchestratorService {
                     resolvedModel,
                     metadata,
                     persistedSession.sessionId(),
-                    toPendingToolResponse(pendingToolCall)
+                    toPendingToolResponse(pendingToolCall),
+                    null
             ));
         }
 
@@ -119,6 +120,7 @@ public class ChatOrchestratorService {
                     resolvedModel,
                     metadata,
                     persistedSession.sessionId(),
+                    null,
                     null
             );
             return PreparedChat.forImmediateResponse(fallbackResponse);

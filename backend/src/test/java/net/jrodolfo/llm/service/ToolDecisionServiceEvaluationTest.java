@@ -132,7 +132,7 @@ class ToolDecisionServiceEvaluationTest {
 
         @Override
         public ChatResponse chat(String message, String model, net.jrodolfo.llm.dto.ChatToolMetadata toolMetadata, String sessionId, net.jrodolfo.llm.dto.PendingToolCallResponse pendingTool) {
-            return new ChatResponse(plannerResponse, resolveModel(model), null, null, null);
+            return new ChatResponse(plannerResponse, resolveModel(model), null, null, null, null);
         }
 
         @Override
