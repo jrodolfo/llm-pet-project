@@ -148,7 +148,7 @@ Set `APP_TOOLS_LOG_PLANNER=true` to log raw planner output, parsed decisions, an
 
 - active model provider readiness
 - active provider configuration, reachability, and readiness
-- MCP configuration and lightweight tool-handshake readiness
+- MCP configuration and cheap runnable-state checks only
 - local sessions and reports directories
 
 `/actuator/info` includes backend/runtime details such as:
