@@ -440,7 +440,7 @@ function Home() {
                   disabled={loading}
                   aria-label={`Export session ${session.title}`}
                 >
-                  Export
+                  Export JSON
                 </button>
                 <button
                   type="button"
