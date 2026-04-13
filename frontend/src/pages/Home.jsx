@@ -19,6 +19,7 @@ function Home() {
   const [toolUsageFilter, setToolUsageFilter] = useState('');
   const [pendingOnly, setPendingOnly] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [loadingMessage, setLoadingMessage] = useState('');
   const [error, setError] = useState('');
   const [artifactFiles, setArtifactFiles] = useState([]);
   const [artifactPreview, setArtifactPreview] = useState(null);
@@ -228,6 +229,7 @@ function Home() {
   const handleSend = async ({ message, model, streaming }) => {
     setError('');
     setLoading(true);
+    setLoadingMessage(streaming ? 'Waiting for streamed response...' : 'Waiting for response...');
     addMessage('user', message);
 
     try {
@@ -277,6 +279,7 @@ function Home() {
       addMessage('assistant', 'Error calling backend/Ollama. Check backend logs.');
     } finally {
       setLoading(false);
+      setLoadingMessage('');
     }
   };
 
@@ -475,7 +478,7 @@ function Home() {
           onCopyPath={handleCopyPath}
         />
 
-        <InputBox disabled={loading} onSend={handleSend} />
+        <InputBox disabled={loading} loadingMessage={loadingMessage} onSend={handleSend} />
         </section>
       </section>
     </main>

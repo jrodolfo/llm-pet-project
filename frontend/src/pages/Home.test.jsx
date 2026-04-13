@@ -155,6 +155,40 @@ describe('Home', () => {
     expect(screen.getByText(/missing: bucket/i)).toBeInTheDocument();
   });
 
+  it('shows a clear waiting message while a non-streaming request is in flight', async () => {
+    let resolveRequest;
+    sendMessage.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveRequest = resolve;
+        })
+    );
+
+    render(<Home />);
+    const user = userEvent.setup();
+
+    await user.click(screen.getByLabelText(/Streaming/i));
+    await user.type(screen.getByPlaceholderText(/Type your prompt/i), 'run aws audit');
+    await user.click(screen.getByRole('button', { name: /send/i }));
+
+    expect(screen.getByRole('button', { name: /working/i })).toBeDisabled();
+    expect(screen.getByText(/Waiting for response/i)).toBeInTheDocument();
+
+    resolveRequest({
+      response: 'Audit complete.',
+      model: 'llama3:8b',
+      sessionId: 'session-123',
+      pendingTool: null,
+      tool: null,
+      toolResult: null,
+      metadata: null
+    });
+
+    await waitFor(() => {
+      expect(screen.queryByText(/Waiting for response/i)).not.toBeInTheDocument();
+    });
+  });
+
   it('previews a structured report artifact from a tool result card', async () => {
     sendMessage.mockResolvedValue({
       response: 'Audit complete.',

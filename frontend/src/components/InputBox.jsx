@@ -2,7 +2,7 @@ import { useState } from 'react';
 
 const MODEL_OPTIONS = ['codellama:70b', 'llama3:8b', 'mistral:7b'];
 
-function InputBox({ disabled, onSend }) {
+function InputBox({ disabled, loadingMessage = '', onSend }) {
   const [message, setMessage] = useState('');
   const [model, setModel] = useState(MODEL_OPTIONS[0]);
   const [streaming, setStreaming] = useState(true);
@@ -49,9 +49,10 @@ function InputBox({ disabled, onSend }) {
           disabled={disabled}
         />
         <button type="submit" disabled={disabled || !message.trim()}>
-          Send
+          {disabled ? 'Working...' : 'Send'}
         </button>
       </div>
+      {disabled && loadingMessage ? <p className="input-status">{loadingMessage}</p> : null}
     </form>
   );
 }

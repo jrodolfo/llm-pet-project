@@ -459,6 +459,12 @@
   opacity: 0.55;
 }
 
+.input-status {
+  margin: 0;
+  font-size: 0.86rem;
+  color: #475569;
+}
+
 @media (max-width: 700px) {
   .chat-layout {
     grid-template-columns: 1fr;
