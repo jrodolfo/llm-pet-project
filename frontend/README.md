@@ -1,5 +1,7 @@
 # Frontend
 
+[![license](https://img.shields.io/badge/license-MIT-blue)](../LICENSE)
+
 React + Vite client for the local chat UI.
 
 ## Run
