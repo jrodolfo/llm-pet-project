@@ -28,6 +28,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class AwsSdkBedrockRuntimeGatewayTest {
@@ -121,6 +122,28 @@ class AwsSdkBedrockRuntimeGatewayTest {
         assertEquals(8, metadata.outputTokens());
         assertEquals(15, metadata.totalTokens());
         assertEquals(210L, metadata.providerLatencyMs());
+    }
+
+    @Test
+    void converseStreamCompletesSafelyWhenBedrockOmitsUsageMetadata() {
+        BedrockRuntimeAsyncClient asyncClient = asyncClient((request, handler) -> {
+            handler.complete();
+            return CompletableFuture.completedFuture(null);
+        });
+
+        AwsSdkBedrockRuntimeGateway gateway = new AwsSdkBedrockRuntimeGateway(syncClient(), asyncClient);
+
+        ModelProviderMetadata metadata = gateway
+                .converseStream("prompt", "amazon.nova-lite-v1:0", chunk -> { })
+                .join();
+
+        assertEquals("bedrock", metadata.provider());
+        assertEquals("amazon.nova-lite-v1:0", metadata.modelId());
+        assertNull(metadata.stopReason());
+        assertNull(metadata.inputTokens());
+        assertNull(metadata.outputTokens());
+        assertNull(metadata.totalTokens());
+        assertNull(metadata.providerLatencyMs());
     }
 
     @Test
