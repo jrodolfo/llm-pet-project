@@ -1,6 +1,6 @@
 import { useState } from 'react';
 
-const MODEL_OPTIONS = ['codellama:70b', 'llama3:8b', 'mistral:7b'];
+const MODEL_OPTIONS = ['llama3:8b', 'mistral:7b', 'codellama:70b'];
 
 function InputBox({ disabled, loadingMessage = '', onSend }) {
   const [message, setMessage] = useState('');
