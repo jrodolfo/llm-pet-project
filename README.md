@@ -1,4 +1,4 @@
-# local-genai-lab
+# Local GenAI Lab
 
 [![ci](https://github.com/jrodolfo/local-genai-lab/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/jrodolfo/local-genai-lab/actions/workflows/ci.yml)
 ![license](https://img.shields.io/badge/license-MIT-blue)
