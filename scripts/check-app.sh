@@ -22,17 +22,42 @@ print_status() {
 }
 
 check_backend() {
-  local response
-  if ! response="$(curl -fsS "${BACKEND_URL}/actuator/health" 2>/dev/null)"; then
+  local body_file http_code response compact
+  body_file="$(mktemp)"
+  http_code="$(curl -sS -o "$body_file" -w "%{http_code}" "${BACKEND_URL}/actuator/health" 2>/dev/null || true)"
+
+  if [ -z "$http_code" ] || [ "$http_code" = "000" ]; then
+    rm -f "$body_file"
     print_status "backend" "failed" "${BACKEND_URL}/actuator/health"
     failures=$((failures + 1))
     return
   fi
 
-  if printf '%s' "$response" | grep -q '"status":"UP"'; then
+  response="$(cat "$body_file")"
+  rm -f "$body_file"
+  compact="$(printf '%s' "$response" | tr -d '\n\r\t ')"
+
+  if printf '%s' "$compact" | grep -q '"status":"UP"'; then
+    print_status "backend" "ok" "${BACKEND_URL}/actuator/health"
+    return
+  fi
+
+  if printf '%s' "$compact" | grep -q '"status":"DOWN"'; then
+    print_status "backend" "up but not ready" "status=DOWN, http=${http_code}"
+    failures=$((failures + 1))
+    return
+  fi
+
+  if printf '%s' "$compact" | grep -q '"status":"OUT_OF_SERVICE"'; then
+    print_status "backend" "up but out of service" "status=OUT_OF_SERVICE, http=${http_code}"
+    failures=$((failures + 1))
+    return
+  fi
+
+  if [ "$http_code" -ge 200 ] && [ "$http_code" -lt 300 ]; then
     print_status "backend" "ok" "${BACKEND_URL}/actuator/health"
   else
-    print_status "backend" "failed" "unexpected health response"
+    print_status "backend" "failed" "unexpected health response (http=${http_code})"
     failures=$((failures + 1))
   fi
 }

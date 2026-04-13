@@ -44,7 +44,9 @@ class ModelProviderHealthIndicatorTest {
         var health = indicator.health();
 
         assertEquals(Status.DOWN, health.getStatus());
+        assertEquals("not-ready", health.getDetails().get("status"));
         assertEquals(false, health.getDetails().get("modelPresent"));
+        assertEquals(false, health.getDetails().get("ready"));
     }
 
     @Test

@@ -134,12 +134,13 @@ public class ModelProviderHealthIndicator implements HealthIndicator {
                 if (!modelPresent) {
                     return Health.status(Status.DOWN)
                             .withDetail("provider", "ollama")
-                            .withDetail("status", "reachable")
+                            .withDetail("status", "not-ready")
                             .withDetail("baseUrl", baseUrl)
                             .withDetail("defaultModel", defaultModel)
                             .withDetail("reachable", true)
+                            .withDetail("ready", false)
                             .withDetail("modelPresent", false)
-                            .withDetail("error", "Configured default model is not present in Ollama.")
+                            .withDetail("error", "Ollama is reachable, but the configured default model is not installed.")
                             .build();
                 }
                 return Health.up()
@@ -148,6 +149,7 @@ public class ModelProviderHealthIndicator implements HealthIndicator {
                         .withDetail("baseUrl", baseUrl)
                         .withDetail("defaultModel", defaultModel)
                         .withDetail("reachable", true)
+                        .withDetail("ready", true)
                         .withDetail("modelPresent", true)
                         .build();
             }
@@ -156,6 +158,8 @@ public class ModelProviderHealthIndicator implements HealthIndicator {
                     .withDetail("status", "unreachable")
                     .withDetail("baseUrl", baseUrl)
                     .withDetail("defaultModel", defaultModel)
+                    .withDetail("reachable", false)
+                    .withDetail("ready", false)
                     .withDetail("statusCode", response.statusCode())
                     .withDetail("error", "Ollama tags endpoint returned a non-success status.")
                     .build();
@@ -165,6 +169,7 @@ public class ModelProviderHealthIndicator implements HealthIndicator {
                     .withDetail("provider", "ollama")
                     .withDetail("status", "interrupted")
                     .withDetail("baseUrl", baseUrl)
+                    .withDetail("ready", false)
                     .withDetail("error", "Ollama reachability check was interrupted.")
                     .build();
         } catch (IOException | IllegalArgumentException ex) {
@@ -173,6 +178,8 @@ public class ModelProviderHealthIndicator implements HealthIndicator {
                     .withDetail("status", "unreachable")
                     .withDetail("baseUrl", baseUrl)
                     .withDetail("defaultModel", defaultModel)
+                    .withDetail("reachable", false)
+                    .withDetail("ready", false)
                     .withDetail("error", ex.getMessage())
                     .build();
         }
