@@ -30,9 +30,16 @@ import { listArtifacts, previewArtifact } from '../api/artifactApi';
 import { deleteSession, exportSession, getSession, importSession, listSessions } from '../api/sessionApi';
 
 describe('Home', () => {
+  let scrollToSpy;
+
   beforeEach(() => {
     vi.clearAllMocks();
     window.localStorage.clear();
+    scrollToSpy = vi.fn();
+    Object.defineProperty(HTMLElement.prototype, 'scrollTo', {
+      configurable: true,
+      value: scrollToSpy
+    });
     Object.defineProperty(navigator, 'clipboard', {
       configurable: true,
       value: {
@@ -199,6 +206,30 @@ describe('Home', () => {
     await waitFor(() => {
       expect(screen.queryByText(/Waiting for response/i)).not.toBeInTheDocument();
     });
+  });
+
+  it('scrolls the chat window to the latest message', async () => {
+    sendMessage.mockResolvedValue({
+      response: 'Recursion is when a function calls itself.',
+      model: 'llama3:8b',
+      sessionId: 'session-123',
+      pendingTool: null,
+      tool: null,
+      toolResult: null,
+      metadata: null
+    });
+
+    render(<Home />);
+    const user = userEvent.setup();
+
+    await screen.findByRole('combobox', { name: /model/i });
+    await user.click(screen.getByLabelText(/Streaming/i));
+    await user.type(screen.getByPlaceholderText(/Type your prompt/i), 'Explain recursion.');
+    await user.click(screen.getByRole('button', { name: /send/i }));
+
+    await screen.findByText(/Recursion is when a function calls itself\./i);
+
+    expect(scrollToSpy).toHaveBeenCalled();
   });
 
   it('previews a structured report artifact from a tool result card', async () => {

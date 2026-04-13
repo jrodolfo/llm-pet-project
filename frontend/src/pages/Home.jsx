@@ -11,6 +11,7 @@ const DEBUG_MODE_STORAGE_KEY = 'local-genai-lab.debug-mode';
 
 function Home() {
   const importInputRef = useRef(null);
+  const chatWindowRef = useRef(null);
   const [messages, setMessages] = useState([]);
   const [sessionId, setSessionId] = useState(null);
   const [pendingTool, setPendingTool] = useState(null);
@@ -74,6 +75,17 @@ function Home() {
   useEffect(() => {
     loadAvailableModels();
   }, []);
+
+  useEffect(() => {
+    const chatWindow = chatWindowRef.current;
+    if (!chatWindow) {
+      return;
+    }
+    chatWindow.scrollTo({
+      top: chatWindow.scrollHeight,
+      behavior: 'auto'
+    });
+  }, [messages, loading, loadingMessage]);
 
   const addMessage = (role, content, tool = null, toolResult = null, metadata = null) => {
     setMessages((current) => [...current, { id: crypto.randomUUID(), role, content, tool, toolResult, metadata }]);
@@ -532,6 +544,7 @@ function Home() {
         ) : null}
 
         <ChatWindow
+          ref={chatWindowRef}
           messages={messages}
           showTechnicalDetails={showTechnicalDetails}
           onPreviewArtifact={handlePreviewArtifact}
