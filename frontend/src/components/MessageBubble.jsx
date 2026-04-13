@@ -15,6 +15,7 @@ function MessageBubble({
   const showTool = !isUser && tool?.used;
   const showMetadata = !isUser && showTechnicalDetails && metadata && (metadata.provider || metadata.modelId);
   const showToolResult = !isUser && toolResult?.type;
+  const showToolVarianceHint = !isUser && showTechnicalDetails && tool?.used && tool?.status === 'success';
 
   return (
     <div className={`message-row ${isUser ? 'user' : 'assistant'}`}>
@@ -25,6 +26,11 @@ function MessageBubble({
             <span>used tool: {tool.name}</span>
             {tool.status ? <span>status: {tool.status}</span> : null}
             {tool.summary ? <span>{tool.summary}</span> : null}
+          </div>
+        ) : null}
+        {showToolVarianceHint ? (
+          <div className="tool-variance-hint">
+            <span>tool completed successfully; final wording still depends on the selected model</span>
           </div>
         ) : null}
         {showToolResult ? (

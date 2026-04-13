@@ -68,6 +68,8 @@ Relevant settings:
 
 Bedrock supports both normal chat and streaming chat.
 
+When a tool call succeeds, the backend still sends the enriched prompt to the selected model. It does not bypass the model or replace the final wording with a deterministic backend template by default. That means different models can still produce noticeably different final answers even when they receive the same grounded tool context.
+
 ## MCP Integration
 
 The backend can launch the local MCP server in [`../mcp`](../mcp) as a subprocess.

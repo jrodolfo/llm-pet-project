@@ -183,6 +183,13 @@ You can also point `APP_STORAGE_REPORTS_DIRECTORY` to an absolute path outside t
 - provider metadata in responses and saved session history
 - typed JSON SSE events for streaming chat
 
+Observed model behavior:
+
+- successful tool execution still flows through the selected model by design
+- the backend enriches the prompt with grounded tool output instead of bypassing the model
+- different models may still phrase the final answer differently after receiving the same tool context
+- that variance is intentional in this lab because it helps compare model behavior under grounded prompts
+
 ### Sessions
 
 - local JSON-backed conversation memory

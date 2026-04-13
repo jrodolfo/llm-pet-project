@@ -59,7 +59,12 @@ describe('MessageBubble', () => {
       <MessageBubble
         role="assistant"
         content="Done."
-        tool={null}
+        tool={{
+          used: true,
+          name: 'aws_region_audit',
+          status: 'success',
+          summary: 'AWS audit completed.'
+        }}
         showTechnicalDetails
         metadata={{
           provider: 'bedrock',
@@ -75,6 +80,7 @@ describe('MessageBubble', () => {
     );
 
     expect(screen.getByText(/technical details/i)).toBeInTheDocument();
+    expect(screen.getByText(/tool completed successfully; final wording still depends on the selected model/i)).toBeInTheDocument();
     expect(screen.getByText(/provider: bedrock/i)).toBeInTheDocument();
     expect(screen.getByText(/model: amazon.nova-lite-v1:0/i)).toBeInTheDocument();
     expect(screen.getByText(/stop reason: end_turn/i)).toBeInTheDocument();
@@ -88,7 +94,12 @@ describe('MessageBubble', () => {
       <MessageBubble
         role="assistant"
         content="Done."
-        tool={null}
+        tool={{
+          used: true,
+          name: 'aws_region_audit',
+          status: 'success',
+          summary: 'AWS audit completed.'
+        }}
         showTechnicalDetails={false}
         metadata={{
           provider: 'bedrock',
@@ -99,6 +110,7 @@ describe('MessageBubble', () => {
 
     expect(screen.queryByText(/technical details/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/provider: bedrock/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/tool completed successfully; final wording still depends on the selected model/i)).not.toBeInTheDocument();
   });
 
   it('does not render provenance for assistant messages without tool metadata', () => {

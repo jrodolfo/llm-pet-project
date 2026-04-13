@@ -263,6 +263,15 @@
   color: #475569;
 }
 
+.tool-variance-hint {
+  margin-top: 8px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: #f1f5f9;
+  color: #475569;
+  font-size: 0.8rem;
+}
+
 .tool-result-card {
   margin-top: 10px;
   padding-top: 8px;
