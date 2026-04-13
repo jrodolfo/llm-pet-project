@@ -43,7 +43,10 @@ class ChatOrchestratorServiceTest {
         ChatResponse response = orchestrator.chat("explain recursion", "llama3:8b", null);
 
         assertEquals("plain response", response.response());
-        assertTrue(chatModelProvider.lastPrompt.contains("<current_user_message>"));
+        assertTrue(chatModelProvider.lastPrompt.contains("User: explain recursion"));
+        assertTrue(chatModelProvider.lastPrompt.contains("Assistant:"));
+        assertFalse(chatModelProvider.lastPrompt.contains("<current_user_message>"));
+        assertFalse(chatModelProvider.lastPrompt.contains("<tool_context>"));
         assertNull(response.tool());
         assertNotNull(response.sessionId());
 
@@ -63,9 +66,11 @@ class ChatOrchestratorServiceTest {
         ChatResponse secondResponse = orchestrator.chat("give me an example", "llama3:8b", firstResponse.sessionId());
 
         assertEquals(firstResponse.sessionId(), secondResponse.sessionId());
-        assertTrue(chatModelProvider.lastPrompt.contains("<conversation_history>"));
-        assertTrue(chatModelProvider.lastPrompt.contains("user: explain recursion"));
-        assertTrue(chatModelProvider.lastPrompt.contains("assistant: plain response"));
+        assertTrue(chatModelProvider.lastPrompt.contains("Conversation so far:"));
+        assertTrue(chatModelProvider.lastPrompt.contains("User: explain recursion"));
+        assertTrue(chatModelProvider.lastPrompt.contains("Assistant: plain response"));
+        assertTrue(chatModelProvider.lastPrompt.contains("User: give me an example"));
+        assertFalse(chatModelProvider.lastPrompt.contains("<conversation_history>"));
     }
 
     @Test

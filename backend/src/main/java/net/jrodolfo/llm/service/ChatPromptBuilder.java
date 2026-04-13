@@ -18,18 +18,49 @@ public class ChatPromptBuilder {
     }
 
     public String build(PromptContext context) {
+        if (context.toolContext() == null) {
+            return buildPlainChatPrompt(context.currentUserMessage(), context.history());
+        }
+        return buildToolAssistedPrompt(context.currentUserMessage(), context.history(), context.toolContext());
+    }
+
+    public String buildPlainChatPrompt(String currentUserMessage, List<ChatSessionMessage> history) {
+        StringBuilder builder = new StringBuilder();
+        builder.append("You are a concise, factual assistant.\n");
+        builder.append("Use conversation history when it helps answer the current user message.\n");
+        builder.append("Answer the current user message directly.\n");
+        builder.append("Do not invent missing facts.\n");
+        builder.append("If the context is incomplete or ambiguous, say so explicitly.\n");
+        appendPlainConversationHistory(builder, history);
+        builder.append("\nUser: ").append(currentUserMessage == null ? "" : currentUserMessage.trim()).append("\n");
+        builder.append("Assistant:");
+        return builder.toString();
+    }
+
+    public String buildToolAssistedPrompt(String currentUserMessage, List<ChatSessionMessage> history, ToolContext toolContext) {
         StringBuilder builder = new StringBuilder();
         builder.append("<assistant_instructions>\n");
         builder.append("You are a concise, factual assistant.\n");
         builder.append("Use conversation history when it helps answer the current user message.\n");
         builder.append("</assistant_instructions>\n");
 
-        appendConversationHistory(builder, context.history());
-        appendCurrentUserMessage(builder, context.currentUserMessage());
-        appendToolContext(builder, context.toolContext());
+        appendConversationHistory(builder, history);
+        appendCurrentUserMessage(builder, currentUserMessage);
+        appendToolContext(builder, toolContext);
         appendResponseRules(builder);
-
         return builder.toString();
+    }
+
+    private void appendPlainConversationHistory(StringBuilder builder, List<ChatSessionMessage> history) {
+        if (history == null || history.isEmpty()) {
+            return;
+        }
+
+        builder.append("\nConversation so far:\n");
+        for (ChatSessionMessage message : history) {
+            String role = "assistant".equalsIgnoreCase(message.role()) ? "Assistant" : "User";
+            builder.append(role).append(": ").append(message.content()).append("\n");
+        }
     }
 
     private void appendConversationHistory(StringBuilder builder, List<ChatSessionMessage> history) {

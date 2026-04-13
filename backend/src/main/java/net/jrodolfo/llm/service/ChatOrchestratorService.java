@@ -250,11 +250,11 @@ public class ChatOrchestratorService {
     }
 
     private String buildConversationPrompt(ChatSession session, String currentUserMessage, ChatPromptBuilder.ToolContext toolContext) {
-        return chatPromptBuilder.build(new ChatPromptBuilder.PromptContext(
-                currentUserMessage,
-                chatMemoryService.historyBeforeLatestUserMessage(session),
-                toolContext
-        ));
+        List<net.jrodolfo.llm.model.ChatSessionMessage> history = chatMemoryService.historyBeforeLatestUserMessage(session);
+        if (toolContext == null) {
+            return chatPromptBuilder.buildPlainChatPrompt(currentUserMessage, history);
+        }
+        return chatPromptBuilder.buildToolAssistedPrompt(currentUserMessage, history, toolContext);
     }
 
     private String buildFailureMessage(ChatToolRouterService.ToolDecision decision, String errorMessage) {
