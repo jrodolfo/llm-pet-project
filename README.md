@@ -1,6 +1,6 @@
-# llm-pet-project
+# local-genai-lab
 
-[![ci](https://github.com/jrodolfo/llm-pet-project/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/jrodolfo/llm-pet-project/actions/workflows/ci.yml)
+[![ci](https://github.com/jrodolfo/local-genai-lab/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/jrodolfo/local-genai-lab/actions/workflows/ci.yml)
 ![java](https://img.shields.io/badge/java-21+-f89820)
 ![spring boot](https://img.shields.io/badge/spring%20boot-3.4-6db33f)
 ![react](https://img.shields.io/badge/react-frontend-61dafb)
@@ -43,7 +43,7 @@ React Frontend -> Spring Boot Backend -> clarification or tool-failure response
 ## Project Structure
 
 ```text
-llm-pet-project/
+local-genai-lab/
 ├── backend/
 │   ├── src/
 │   ├── pom.xml

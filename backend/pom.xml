@@ -12,10 +12,10 @@
     </parent>
 
     <groupId>net.jrodolfo.llm</groupId>
-    <artifactId>backend</artifactId>
+    <artifactId>local-genai-lab-backend</artifactId>
     <version>0.0.1-SNAPSHOT</version>
-    <name>llm-pet-project-backend</name>
-    <description>Spring Boot proxy backend for Ollama-based LLM chat</description>
+    <name>local-genai-lab-backend</name>
+    <description>Spring Boot backend for local GenAI chat, sessions, artifacts, and MCP-backed tooling</description>
 
     <properties>
         <java.version>21</java.version>

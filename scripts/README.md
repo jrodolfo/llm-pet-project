@@ -1,6 +1,6 @@
 # Scripts
 
-[![ci](https://github.com/jrodolfo/llm-pet-project/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/jrodolfo/llm-pet-project/actions/workflows/ci.yml)
+[![ci](https://github.com/jrodolfo/local-genai-lab/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/jrodolfo/local-genai-lab/actions/workflows/ci.yml)
 ![shell](https://img.shields.io/badge/shell-bash-89e051)
 ![license](https://img.shields.io/badge/license-MIT-blue)
 ![aws](https://img.shields.io/badge/aws-cloud-a1662f)

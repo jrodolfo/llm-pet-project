@@ -21,10 +21,10 @@ public class OpenApiConfig {
     }
 
     @Bean
-    public OpenAPI llmPetProjectOpenApi() {
+    public OpenAPI localGenAiLabOpenApi() {
         return new OpenAPI()
                 .info(new Info()
-                        .title("LLM Pet Project API")
+                        .title("Local GenAI Lab API")
                         .description("Spring Boot API for chat, sessions, local artifacts, and optional MCP-backed AWS tooling.")
                         .version("v1")
                         .contact(new Contact()

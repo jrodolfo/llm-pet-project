@@ -6,7 +6,7 @@ import ChatWindow from '../components/ChatWindow';
 import InputBox from '../components/InputBox';
 import './Home.css';
 
-const DEBUG_MODE_STORAGE_KEY = 'llm-pet-project.debug-mode';
+const DEBUG_MODE_STORAGE_KEY = 'local-genai-lab.debug-mode';
 
 function Home() {
   const importInputRef = useRef(null);
@@ -392,8 +392,8 @@ function Home() {
         <section className="chat-card">
         <header>
           <div>
-            <h1>LLM Pet Project</h1>
-            <p>React + Spring Boot + Ollama</p>
+            <h1>Local GenAI Lab</h1>
+            <p>React + Spring Boot + Ollama / Bedrock</p>
           </div>
           <label className="debug-toggle">
             <input

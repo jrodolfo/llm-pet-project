@@ -46,7 +46,7 @@ public class ActuatorInfoContributor implements InfoContributor {
 
     private Map<String, Object> appDetails() {
         Map<String, Object> details = new LinkedHashMap<>();
-        details.put("name", environment.getProperty("spring.application.name", "llm-pet-project-backend"));
+        details.put("name", environment.getProperty("spring.application.name", "local-genai-lab-backend"));
         details.put("description", "Spring Boot backend for chat, sessions, artifacts, and MCP-backed tooling.");
         return details;
     }

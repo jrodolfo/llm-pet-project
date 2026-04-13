@@ -169,7 +169,7 @@ public class McpClient {
             initParams.put("protocolVersion", PROTOCOL_VERSION);
             initParams.set("capabilities", objectMapper.createObjectNode());
             initParams.set("clientInfo", objectMapper.createObjectNode()
-                    .put("name", "llm-pet-project-backend")
+                    .put("name", "local-genai-lab-backend")
                     .put("version", "0.1.0"));
 
             JsonNode response = sendRequest("initialize", initParams, startupTimeout);

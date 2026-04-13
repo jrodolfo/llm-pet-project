@@ -303,7 +303,7 @@ describe('Home', () => {
   });
 
   it('shows provider metadata when technical details are enabled', async () => {
-    window.localStorage.setItem('llm-pet-project.debug-mode', 'true');
+    window.localStorage.setItem('local-genai-lab.debug-mode', 'true');
     sendMessage.mockResolvedValue({
       response: 'Audit complete.',
       model: 'llama3:8b',
@@ -346,11 +346,11 @@ describe('Home', () => {
 
     await user.click(toggle);
     expect(toggle).toBeChecked();
-    expect(window.localStorage.getItem('llm-pet-project.debug-mode')).toBe('true');
+    expect(window.localStorage.getItem('local-genai-lab.debug-mode')).toBe('true');
 
     await user.click(toggle);
     expect(toggle).not.toBeChecked();
-    expect(window.localStorage.getItem('llm-pet-project.debug-mode')).toBe('false');
+    expect(window.localStorage.getItem('local-genai-lab.debug-mode')).toBe('false');
   });
 
   it('shows pending tool state when a loaded session includes it', async () => {

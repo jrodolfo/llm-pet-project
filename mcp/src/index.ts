@@ -45,7 +45,7 @@ function formatToolError(error: unknown) {
 }
 
 const server = new McpServer({
-  name: "llm-pet-project-mcp",
+  name: "local-genai-lab-mcp",
   version: "0.1.0",
 });
 

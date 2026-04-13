@@ -29,7 +29,7 @@ class ActuatorSupportTest {
     void actuatorInfoIncludesApplicationAndRuntimeDetails() throws Exception {
         mockMvc.perform(get("/actuator/info"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.app.name").value("llm-pet-project-backend"))
+                .andExpect(jsonPath("$.app.name").value("local-genai-lab-backend"))
                 .andExpect(jsonPath("$.runtime.provider").exists())
                 .andExpect(jsonPath("$.runtime.sessionsDirectory").exists())
                 .andExpect(jsonPath("$.runtime.mcp.enabled").exists())
