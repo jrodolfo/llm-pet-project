@@ -70,7 +70,7 @@ public class ChatArtifactService {
         try {
             PreviewContent previewContent = readPreviewContent(resolvedPath);
             FileTime lastModified = Files.getLastModifiedTime(resolvedPath);
-            String relativePath = reportsDirectory.relativize(resolvedPath).toString();
+            String relativePath = toApiRelativePath(resolvedPath);
             return new ArtifactPreviewResponse(
                     relativePath,
                     relativePath,
@@ -111,7 +111,7 @@ public class ChatArtifactService {
 
     private ArtifactFileResponse toArtifactFileResponse(Path path) {
         try {
-            String relativePath = reportsDirectory.relativize(path).toString();
+            String relativePath = toApiRelativePath(path);
             return new ArtifactFileResponse(
                     path.getFileName().toString(),
                     relativePath,
@@ -145,6 +145,10 @@ public class ChatArtifactService {
     private boolean isPreviewable(Path path) {
         String lowerName = path.getFileName().toString().toLowerCase(Locale.ROOT);
         return PREVIEWABLE_EXTENSIONS.stream().anyMatch(lowerName::endsWith);
+    }
+
+    private String toApiRelativePath(Path path) {
+        return reportsDirectory.relativize(path).toString().replace('\\', '/');
     }
 
     private String contentTypeFor(Path path) {
