@@ -137,6 +137,25 @@ def factorial(n):
     expect(screen.getByText(/ui wait: 490 ms/i)).toBeInTheDocument();
   });
 
+  it('formats longer timing values into minutes, seconds, and milliseconds', () => {
+    render(
+      <MessageBubble
+        role="assistant"
+        content="Done."
+        showTechnicalDetails
+        metadata={{
+          provider: 'ollama',
+          modelId: 'llama3:8b',
+          backendDurationMs: 84474,
+          uiWaitMs: 84661
+        }}
+      />
+    );
+
+    expect(screen.getByText(/backend total: 1 m 24 s 474 ms/i)).toBeInTheDocument();
+    expect(screen.getByText(/ui wait: 1 m 24 s 661 ms/i)).toBeInTheDocument();
+  });
+
   it('hides provider metadata when technical details are disabled', () => {
     render(
       <MessageBubble

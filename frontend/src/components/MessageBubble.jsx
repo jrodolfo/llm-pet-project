@@ -54,15 +54,33 @@ function MessageBubble({
                 tokens: {metadata.inputTokens ?? '?'} in / {metadata.outputTokens ?? '?'} out / {metadata.totalTokens ?? '?'} total
               </span>
             ) : null}
-            {metadata.durationMs != null ? <span>provider duration: {metadata.durationMs} ms</span> : null}
-            {metadata.providerLatencyMs != null ? <span>provider latency: {metadata.providerLatencyMs} ms</span> : null}
-            {metadata.backendDurationMs != null ? <span>backend total: {metadata.backendDurationMs} ms</span> : null}
-            {metadata.uiWaitMs != null ? <span>ui wait: {metadata.uiWaitMs} ms</span> : null}
+            {metadata.durationMs != null ? <span>provider duration: {formatDuration(metadata.durationMs)}</span> : null}
+            {metadata.providerLatencyMs != null ? <span>provider latency: {formatDuration(metadata.providerLatencyMs)}</span> : null}
+            {metadata.backendDurationMs != null ? <span>backend total: {formatDuration(metadata.backendDurationMs)}</span> : null}
+            {metadata.uiWaitMs != null ? <span>ui wait: {formatDuration(metadata.uiWaitMs)}</span> : null}
           </div>
         ) : null}
       </div>
     </div>
   );
+}
+
+function formatDuration(totalMs) {
+  const durationMs = Math.max(0, totalMs ?? 0);
+  const minutes = Math.floor(durationMs / 60000);
+  const seconds = Math.floor((durationMs % 60000) / 1000);
+  const milliseconds = durationMs % 1000;
+  const parts = [];
+
+  if (minutes > 0) {
+    parts.push(`${minutes} m`);
+  }
+  if (seconds > 0 || minutes > 0) {
+    parts.push(`${seconds} s`);
+  }
+  parts.push(`${milliseconds} ms`);
+
+  return parts.join(' ');
 }
 
 function renderMarkdownBlocks(content = '') {
