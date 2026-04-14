@@ -6,10 +6,22 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
+import java.util.Locale;
+import java.util.regex.Pattern;
+
 @Service
 public class ToolDecisionService {
 
     private static final Logger log = LoggerFactory.getLogger(ToolDecisionService.class);
+    private static final Pattern REGION_PATTERN = Pattern.compile("\\b(af|ap|ca|eu|il|me|sa|us)-[a-z]+-\\d\\b");
+    private static final List<String> TOOL_SIGNAL_TERMS = List.of(
+            "audit", "report", "reports", "bucket", "cloudwatch", "s3", "latest report",
+            "recent reports", "read report", "list reports", "show report",
+            "aws-config", "aws config", "sts", "ec2", "elbv2", "rds", "lambda",
+            "ecs", "eks", "sagemaker", "opensearch", "secretsmanager", "secrets manager",
+            "log groups", "tagging"
+    );
 
     private final AppToolsProperties appToolsProperties;
     private final LlmToolPlannerService llmToolPlannerService;
@@ -55,6 +67,16 @@ public class ToolDecisionService {
                 );
             }
             default -> {
+                if (shouldSkipPlannerForPlainChat(message)) {
+                    yield new DecisionTrace(
+                            "hybrid",
+                            false,
+                            false,
+                            null,
+                            null,
+                            ruleBasedRouter.route(message)
+                    );
+                }
                 LlmToolPlannerService.PlanningResult planningResult = llmToolPlannerService.planDetailed(message, model);
                 ChatToolRouterService.ToolDecision finalDecision = planningResult.parsedDecision()
                         .orElseGet(() -> ruleBasedRouter.route(message));
@@ -128,6 +150,19 @@ public class ToolDecisionService {
             return "hybrid";
         }
         return configured.trim().toLowerCase();
+    }
+
+    private boolean shouldSkipPlannerForPlainChat(String message) {
+        if (message == null || message.isBlank()) {
+            return true;
+        }
+
+        String normalized = message.toLowerCase(Locale.ROOT).trim();
+        if (REGION_PATTERN.matcher(normalized).find()) {
+            return false;
+        }
+
+        return TOOL_SIGNAL_TERMS.stream().noneMatch(normalized::contains);
     }
 
     private void logTrace(String phase, DecisionTrace trace, String message) {

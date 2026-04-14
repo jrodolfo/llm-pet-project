@@ -243,6 +243,21 @@ class ChatOrchestratorServiceTest {
     }
 
     @Test
+    void hybridModeSkipsPlannerForObviousPlainChatPrompt() {
+        FakeChatModelProvider chatModelProvider = new FakeChatModelProvider();
+        FileChatSessionStore sessionStore = newSessionStore();
+        ChatOrchestratorService orchestrator = newOrchestrator(chatModelProvider, new FakeMcpService(), sessionStore, "hybrid");
+
+        ChatResponse response = orchestrator.chat("Translate \"Good morning!\" to French.", "llama3:8b", null);
+
+        assertEquals("plain response", response.response());
+        assertNull(response.tool());
+        assertEquals(0, chatModelProvider.plannerCalls);
+        assertEquals("user", chatModelProvider.lastMessages.get(1).role());
+        assertEquals("Translate \"Good morning!\" to French.", chatModelProvider.lastMessages.get(1).content());
+    }
+
+    @Test
     void hybridModeFallsBackToRulesWhenPlannerOutputIsMalformed() {
         FakeChatModelProvider chatModelProvider = new FakeChatModelProvider();
         chatModelProvider.nextPlannerResponse = "not valid json";
@@ -302,7 +317,7 @@ class ChatOrchestratorServiceTest {
 
         assertEquals("jrodolfo.net", mcpService.lastS3Request.bucket());
         assertEquals("success", followUp.tool().status());
-        assertEquals(3, chatModelProvider.plannerCalls);
+        assertEquals(2, chatModelProvider.plannerCalls);
     }
 
     @Test

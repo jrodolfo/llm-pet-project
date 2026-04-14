@@ -108,7 +108,7 @@
     "expectedType": "NONE",
     "expectedUseTool": false,
     "expectedClarification": false,
-    "expectedFallbackUsed": true
+    "expectedFallbackUsed": false
   },
   {
     "name": "bucket discussion without metrics must stay plain chat",
