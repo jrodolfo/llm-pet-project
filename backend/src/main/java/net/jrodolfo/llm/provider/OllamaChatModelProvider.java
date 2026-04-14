@@ -28,9 +28,11 @@ public class OllamaChatModelProvider implements ChatModelProvider {
             PendingToolCallResponse pendingTool
     ) {
         String resolvedModel = ollamaClient.resolveModel(model);
+        long startedAt = System.nanoTime();
         String response = prompt.hasMessages()
                 ? ollamaClient.chat(prompt.messages(), resolvedModel)
                 : ollamaClient.generate(prompt.prompt().trim(), resolvedModel);
+        long durationMs = elapsedMillis(startedAt);
         return new ChatResponse(
                 response,
                 resolvedModel,
@@ -38,21 +40,23 @@ public class OllamaChatModelProvider implements ChatModelProvider {
                 toolResult,
                 sessionId,
                 pendingTool,
-                new ModelProviderMetadata("ollama", resolvedModel, null, null, null, null, null, null)
+                new ModelProviderMetadata("ollama", resolvedModel, null, null, null, null, durationMs, null)
         );
     }
 
     @Override
     public StreamingChatResult streamChat(ProviderPrompt prompt, String model, Consumer<String> tokenConsumer) {
         String resolvedModel = ollamaClient.resolveModel(model);
+        long startedAt = System.nanoTime();
         if (prompt.hasMessages()) {
             ollamaClient.streamChat(prompt.messages(), resolvedModel, tokenConsumer);
         } else {
             ollamaClient.streamGenerate(prompt.prompt().trim(), resolvedModel, tokenConsumer);
         }
+        long durationMs = elapsedMillis(startedAt);
         return new StreamingChatResult(
                 CompletableFuture.completedFuture(
-                        new ModelProviderMetadata("ollama", resolvedModel, null, null, null, null, null, null)
+                        new ModelProviderMetadata("ollama", resolvedModel, null, null, null, null, durationMs, null)
                 ),
                 () -> { }
         );
@@ -61,5 +65,9 @@ public class OllamaChatModelProvider implements ChatModelProvider {
     @Override
     public String resolveModel(String model) {
         return ollamaClient.resolveModel(model);
+    }
+
+    private long elapsedMillis(long startedAt) {
+        return java.util.concurrent.TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startedAt);
     }
 }
