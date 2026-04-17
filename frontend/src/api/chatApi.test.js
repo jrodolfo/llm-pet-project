@@ -51,7 +51,7 @@ describe('chatApi', () => {
       })
     });
 
-    const result = await sendMessage({ message: 'run audit', model: 'llama3:8b' });
+    const result = await sendMessage({ message: 'run audit', provider: 'ollama', model: 'llama3:8b' });
 
     expect(result.response).toBe('Answer');
     expect(result.sessionId).toBe('session-123');
@@ -76,6 +76,7 @@ describe('chatApi', () => {
 
     await streamMessage({
       message: 'run audit',
+      provider: 'ollama',
       model: 'llama3:8b',
       onEvent: (event) => events.push(event)
     });
@@ -106,6 +107,7 @@ describe('chatApi', () => {
 
     await streamMessage({
       message: 'run audit',
+      provider: 'ollama',
       model: 'llama3:8b',
       onEvent: (event) => events.push(event)
     });

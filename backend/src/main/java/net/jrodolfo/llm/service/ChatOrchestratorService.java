@@ -12,6 +12,7 @@ import net.jrodolfo.llm.dto.S3CloudwatchReportToolRequest;
 import net.jrodolfo.llm.model.ChatSession;
 import net.jrodolfo.llm.model.PendingToolCall;
 import net.jrodolfo.llm.provider.ChatModelProvider;
+import net.jrodolfo.llm.provider.ChatModelProviderRegistry;
 import net.jrodolfo.llm.provider.ProviderPrompt;
 import org.springframework.stereotype.Service;
 
@@ -29,7 +30,7 @@ import java.nio.file.Path;
 @Service
 public class ChatOrchestratorService {
 
-    private final ChatModelProvider chatModelProvider;
+    private final ChatModelProviderRegistry chatModelProviderRegistry;
     private final McpService mcpService;
     private final ToolDecisionService toolDecisionService;
     private final ChatMemoryService chatMemoryService;
@@ -38,7 +39,7 @@ public class ChatOrchestratorService {
     private final Path reportsDirectory;
 
     public ChatOrchestratorService(
-            ChatModelProvider chatModelProvider,
+            ChatModelProviderRegistry chatModelProviderRegistry,
             McpService mcpService,
             ToolDecisionService toolDecisionService,
             ChatMemoryService chatMemoryService,
@@ -46,7 +47,7 @@ public class ChatOrchestratorService {
             ChatSessionService chatSessionService,
             AppStorageProperties appStorageProperties
     ) {
-        this.chatModelProvider = chatModelProvider;
+        this.chatModelProviderRegistry = chatModelProviderRegistry;
         this.mcpService = mcpService;
         this.toolDecisionService = toolDecisionService;
         this.chatMemoryService = chatMemoryService;
@@ -55,12 +56,12 @@ public class ChatOrchestratorService {
         this.reportsDirectory = appStorageProperties.resolvedReportsDirectory().toAbsolutePath().normalize();
     }
 
-    public ChatResponse chat(String message, String model, String sessionId) {
-        PreparedChat preparedChat = prepareChat(message, model, sessionId);
+    public ChatResponse chat(String message, String provider, String model, String sessionId) {
+        PreparedChat preparedChat = prepareChat(message, provider, model, sessionId);
         if (preparedChat.immediateResponse() != null) {
             return preparedChat.immediateResponse();
         }
-        ChatResponse response = chatModelProvider.chat(
+        ChatResponse response = preparedChat.provider().chat(
                 preparedChat.prompt(),
                 preparedChat.model(),
                 preparedChat.toolMetadata(),
@@ -85,11 +86,13 @@ public class ChatOrchestratorService {
      * <p>The result is either an immediate response for clarification/failure cases or a
      * prompt-backed continuation that can be executed later.
      */
-    public PreparedChat prepareChat(String message, String model, String sessionId) {
+    public PreparedChat prepareChat(String message, String provider, String model, String sessionId) {
+        ChatModelProvider chatModelProvider = chatModelProviderRegistry.get(provider);
         String resolvedModel = chatModelProvider.resolveModel(model);
         ChatSession session = chatMemoryService.startTurn(sessionId, model, resolvedModel, message);
-        ChatToolRouterService.ToolDecision routedDecision = toolDecisionService.route(message, resolvedModel);
-        ChatToolRouterService.ToolDecision decision = resolveDecision(session, message, resolvedModel, routedDecision);
+        String resolvedProvider = chatModelProviderRegistry.resolveProviderName(provider);
+        ChatToolRouterService.ToolDecision routedDecision = toolDecisionService.route(message, resolvedProvider, resolvedModel);
+        ChatToolRouterService.ToolDecision decision = resolveDecision(session, message, resolvedProvider, resolvedModel, routedDecision);
         if (decision.needsClarification()) {
             ChatToolMetadata metadata = new ChatToolMetadata(
                     true,
@@ -112,7 +115,7 @@ public class ChatOrchestratorService {
 
         if (!decision.shouldUseTool()) {
             ChatSession clearedSession = session.withPendingToolCall(null);
-            return PreparedChat.forPrompt(buildConversationPrompt(clearedSession, message, null), resolvedModel, null, null, clearedSession);
+            return PreparedChat.forPrompt(chatModelProvider, buildConversationPrompt(clearedSession, message, null), resolvedModel, null, null, clearedSession);
         }
 
         try {
@@ -129,7 +132,7 @@ public class ChatOrchestratorService {
                     )
             );
             ChatToolMetadata metadata = new ChatToolMetadata(true, execution.toolName(), "success", execution.summary());
-            return PreparedChat.forPrompt(augmentedPrompt, resolvedModel, metadata, execution.toolResult(reportsDirectory), clearedSession);
+            return PreparedChat.forPrompt(chatModelProvider, augmentedPrompt, resolvedModel, metadata, execution.toolResult(reportsDirectory), clearedSession);
         } catch (IllegalArgumentException | McpClientException ex) {
             ChatToolMetadata metadata = new ChatToolMetadata(
                     true,
@@ -179,6 +182,7 @@ public class ChatOrchestratorService {
     private ChatToolRouterService.ToolDecision resolveDecision(
             ChatSession session,
             String message,
+            String provider,
             String model,
             ChatToolRouterService.ToolDecision routedDecision
     ) {
@@ -188,7 +192,7 @@ public class ChatOrchestratorService {
             return routedDecision;
         }
 
-        ChatToolRouterService.ToolDecision pendingDecision = toolDecisionService.resolvePending(session.pendingToolCall(), message, model);
+        ChatToolRouterService.ToolDecision pendingDecision = toolDecisionService.resolvePending(session.pendingToolCall(), message, provider, model);
         if (pendingDecision.shouldUseTool()) {
             return pendingDecision;
         }
@@ -491,6 +495,7 @@ public class ChatOrchestratorService {
      * needed to execute and persist a model-backed reply.
      */
     public record PreparedChat(
+            ChatModelProvider provider,
             ProviderPrompt prompt,
             String model,
             ChatToolMetadata toolMetadata,
@@ -500,17 +505,18 @@ public class ChatOrchestratorService {
             ChatResponse immediateResponse
     ) {
         static PreparedChat forPrompt(
+                ChatModelProvider provider,
                 ProviderPrompt prompt,
                 String model,
                 ChatToolMetadata toolMetadata,
                 Map<String, Object> toolResult,
                 ChatSession session
         ) {
-            return new PreparedChat(prompt, model, toolMetadata, toolResult, null, session, null);
+            return new PreparedChat(provider, prompt, model, toolMetadata, toolResult, null, session, null);
         }
 
         static PreparedChat forImmediateResponse(ChatResponse response) {
-            return new PreparedChat(null, response.model(), response.tool(), response.toolResult(), response.pendingTool(), null, response);
+            return new PreparedChat(null, null, response.model(), response.tool(), response.toolResult(), response.pendingTool(), null, response);
         }
     }
 }

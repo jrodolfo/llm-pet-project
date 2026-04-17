@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import net.jrodolfo.llm.model.PendingToolCall;
 import net.jrodolfo.llm.provider.ChatModelProvider;
+import net.jrodolfo.llm.provider.ChatModelProviderRegistry;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
@@ -25,19 +26,19 @@ public class LlmToolPlannerService {
             "ecs", "eks", "sagemaker", "opensearch", "secretsmanager", "logs", "tagging"
     );
 
-    private final ChatModelProvider chatModelProvider;
+    private final ChatModelProviderRegistry chatModelProviderRegistry;
     private final ObjectMapper objectMapper;
 
-    public LlmToolPlannerService(ChatModelProvider chatModelProvider, ObjectMapper objectMapper) {
-        this.chatModelProvider = chatModelProvider;
+    public LlmToolPlannerService(ChatModelProviderRegistry chatModelProviderRegistry, ObjectMapper objectMapper) {
+        this.chatModelProviderRegistry = chatModelProviderRegistry;
         this.objectMapper = objectMapper;
     }
 
-    public Optional<ChatToolRouterService.ToolDecision> plan(String message, String model) {
-        return planDetailed(message, model).parsedDecision();
+    public Optional<ChatToolRouterService.ToolDecision> plan(String message, String provider, String model) {
+        return planDetailed(message, provider, model).parsedDecision();
     }
 
-    public PlanningResult planDetailed(String message, String model) {
+    public PlanningResult planDetailed(String message, String provider, String model) {
         String plannerPrompt = """
                 <tool_planning_request>
                 You are a routing planner for a local chat application.
@@ -85,15 +86,16 @@ public class LlmToolPlannerService {
                 </tool_planning_request>
                 """.formatted(String.join(", ", AUDIT_SERVICES), message.trim());
 
+        ChatModelProvider chatModelProvider = chatModelProviderRegistry.get(provider);
         String rawResponse = chatModelProvider.chat(net.jrodolfo.llm.provider.ProviderPrompt.forPrompt(plannerPrompt), model, null, null, null, null).response();
         return new PlanningResult(rawResponse, parseDecision(rawResponse, message, true));
     }
 
-    public Optional<ChatToolRouterService.ToolDecision> resolvePending(PendingToolCall pendingToolCall, String message, String model) {
-        return resolvePendingDetailed(pendingToolCall, message, model).parsedDecision();
+    public Optional<ChatToolRouterService.ToolDecision> resolvePending(PendingToolCall pendingToolCall, String message, String provider, String model) {
+        return resolvePendingDetailed(pendingToolCall, message, provider, model).parsedDecision();
     }
 
-    public PlanningResult resolvePendingDetailed(PendingToolCall pendingToolCall, String message, String model) {
+    public PlanningResult resolvePendingDetailed(PendingToolCall pendingToolCall, String message, String provider, String model) {
         String plannerPrompt = """
                 <tool_planning_request>
                 You are resolving a follow-up message for a pending tool request.
@@ -154,6 +156,7 @@ public class LlmToolPlannerService {
                 message.trim()
         );
 
+        ChatModelProvider chatModelProvider = chatModelProviderRegistry.get(provider);
         String rawResponse = chatModelProvider.chat(net.jrodolfo.llm.provider.ProviderPrompt.forPrompt(plannerPrompt), model, null, null, null, null).response();
         return new PlanningResult(rawResponse, parseDecision(rawResponse, message, false));
     }

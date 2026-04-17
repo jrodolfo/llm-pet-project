@@ -2,11 +2,11 @@ const JSON_HEADERS = {
   'Content-Type': 'application/json'
 };
 
-export async function sendMessage({ message, model, sessionId }) {
+export async function sendMessage({ message, provider, model, sessionId }) {
   const response = await fetch('/api/chat', {
     method: 'POST',
     headers: JSON_HEADERS,
-    body: JSON.stringify({ message, model, sessionId })
+    body: JSON.stringify({ message, provider, model, sessionId })
   });
 
   if (!response.ok) {
@@ -17,11 +17,11 @@ export async function sendMessage({ message, model, sessionId }) {
   return response.json();
 }
 
-export async function streamMessage({ message, model, sessionId, onEvent }) {
+export async function streamMessage({ message, provider, model, sessionId, onEvent }) {
   const response = await fetch('/api/chat/stream', {
     method: 'POST',
     headers: JSON_HEADERS,
-    body: JSON.stringify({ message, model, sessionId })
+    body: JSON.stringify({ message, provider, model, sessionId })
   });
 
   if (!response.ok) {

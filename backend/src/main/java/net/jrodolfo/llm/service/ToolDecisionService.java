@@ -43,15 +43,15 @@ public class ToolDecisionService {
         this.ruleBasedRouter = ruleBasedRouter;
     }
 
-    public ChatToolRouterService.ToolDecision route(String message, String model) {
-        return routeDetailed(message, model).finalDecision();
+    public ChatToolRouterService.ToolDecision route(String message, String provider, String model) {
+        return routeDetailed(message, provider, model).finalDecision();
     }
 
-    public ChatToolRouterService.ToolDecision resolvePending(PendingToolCall pendingToolCall, String message, String model) {
-        return resolvePendingDetailed(pendingToolCall, message, model).finalDecision();
+    public ChatToolRouterService.ToolDecision resolvePending(PendingToolCall pendingToolCall, String message, String provider, String model) {
+        return resolvePendingDetailed(pendingToolCall, message, provider, model).finalDecision();
     }
 
-    public DecisionTrace routeDetailed(String message, String model) {
+    public DecisionTrace routeDetailed(String message, String provider, String model) {
         DecisionTrace trace = switch (routingMode()) {
             case "rules" -> new DecisionTrace(
                     "rules",
@@ -62,7 +62,7 @@ public class ToolDecisionService {
                     ruleBasedRouter.route(message)
             );
             case "llm" -> {
-                LlmToolPlannerService.PlanningResult planningResult = llmToolPlannerService.planDetailed(message, model);
+                LlmToolPlannerService.PlanningResult planningResult = llmToolPlannerService.planDetailed(message, provider, model);
                 yield new DecisionTrace(
                         "llm",
                         true,
@@ -85,7 +85,7 @@ public class ToolDecisionService {
                             ruleBasedRouter.route(message)
                     );
                 }
-                LlmToolPlannerService.PlanningResult planningResult = llmToolPlannerService.planDetailed(message, model);
+                LlmToolPlannerService.PlanningResult planningResult = llmToolPlannerService.planDetailed(message, provider, model);
                 ChatToolRouterService.ToolDecision finalDecision = planningResult.parsedDecision()
                         .orElseGet(() -> ruleBasedRouter.route(message));
                 yield new DecisionTrace(
@@ -102,7 +102,7 @@ public class ToolDecisionService {
         return trace;
     }
 
-    public DecisionTrace resolvePendingDetailed(PendingToolCall pendingToolCall, String message, String model) {
+    public DecisionTrace resolvePendingDetailed(PendingToolCall pendingToolCall, String message, String provider, String model) {
         DecisionTrace trace = switch (routingMode()) {
             case "rules" -> new DecisionTrace(
                     "rules",
@@ -114,7 +114,7 @@ public class ToolDecisionService {
             );
             case "llm" -> {
                 LlmToolPlannerService.PlanningResult planningResult =
-                        llmToolPlannerService.resolvePendingDetailed(pendingToolCall, message, model);
+                        llmToolPlannerService.resolvePendingDetailed(pendingToolCall, message, provider, model);
                 yield new DecisionTrace(
                         "llm",
                         true,
@@ -126,7 +126,7 @@ public class ToolDecisionService {
             }
             default -> {
                 LlmToolPlannerService.PlanningResult planningResult =
-                        llmToolPlannerService.resolvePendingDetailed(pendingToolCall, message, model);
+                        llmToolPlannerService.resolvePendingDetailed(pendingToolCall, message, provider, model);
                 ChatToolRouterService.ToolDecision rulesDecision = ruleBasedRouter.resolvePending(pendingToolCall, message);
                 ChatToolRouterService.ToolDecision finalDecision;
                 boolean fallbackUsed = planningResult.parsedDecision().isEmpty();

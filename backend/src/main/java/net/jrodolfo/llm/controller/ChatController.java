@@ -14,8 +14,8 @@ import net.jrodolfo.llm.dto.ChatRequest;
 import net.jrodolfo.llm.dto.ChatResponse;
 import net.jrodolfo.llm.dto.ChatStreamEvent;
 import net.jrodolfo.llm.dto.ModelProviderMetadata;
-import net.jrodolfo.llm.provider.ChatModelProvider;
 import net.jrodolfo.llm.service.ChatOrchestratorService;
+import net.jrodolfo.llm.service.InvalidProviderException;
 import net.jrodolfo.llm.service.InvalidSessionIdException;
 import jakarta.validation.Valid;
 import org.slf4j.Logger;
@@ -54,18 +54,15 @@ public class ChatController {
     private static final Logger log = LoggerFactory.getLogger(ChatController.class);
 
     private final ChatOrchestratorService chatOrchestratorService;
-    private final ChatModelProvider chatModelProvider;
     private final ObjectMapper objectMapper;
     private final Executor chatStreamingExecutor;
 
     public ChatController(
             ChatOrchestratorService chatOrchestratorService,
-            ChatModelProvider chatModelProvider,
             ObjectMapper objectMapper,
             @Qualifier("chatStreamingExecutor") Executor chatStreamingExecutor
     ) {
         this.chatOrchestratorService = chatOrchestratorService;
-        this.chatModelProvider = chatModelProvider;
         this.objectMapper = objectMapper;
         this.chatStreamingExecutor = chatStreamingExecutor;
     }
@@ -79,7 +76,7 @@ public class ChatController {
     })
     public ChatResponse chat(@Valid @RequestBody ChatRequest request) {
         long startedAt = System.nanoTime();
-        ChatResponse response = chatOrchestratorService.chat(request.message(), request.model(), request.sessionId());
+        ChatResponse response = chatOrchestratorService.chat(request.message(), request.provider(), request.model(), request.sessionId());
         return new ChatResponse(
                 response.response(),
                 response.model(),
@@ -147,6 +144,7 @@ public class ChatController {
             try {
                 ChatOrchestratorService.PreparedChat preparedChat = chatOrchestratorService.prepareChat(
                         request.message(),
+                        request.provider(),
                         request.model(),
                         request.sessionId()
                 );
@@ -182,7 +180,7 @@ public class ChatController {
                 }
 
                 StringBuilder responseBuffer = new StringBuilder();
-                var streamingResult = chatModelProvider.streamChat(preparedChat.prompt(), preparedChat.model(), token -> {
+                var streamingResult = preparedChat.provider().streamChat(preparedChat.prompt(), preparedChat.model(), token -> {
                     if (streamClosed.get()) {
                         throw new StreamAbortedException();
                     }
@@ -250,6 +248,14 @@ public class ChatController {
     @Operation(hidden = true)
     public ResponseEntity<Map<String, String>> handleInvalidSessionId(InvalidSessionIdException ex) {
         log.warn("Invalid session id", ex);
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(Map.of("error", ex.getMessage()));
+    }
+
+    @ExceptionHandler(InvalidProviderException.class)
+    @Operation(hidden = true)
+    public ResponseEntity<Map<String, String>> handleInvalidProvider(InvalidProviderException ex) {
+        log.warn("Invalid provider", ex);
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                 .body(Map.of("error", ex.getMessage()));
     }

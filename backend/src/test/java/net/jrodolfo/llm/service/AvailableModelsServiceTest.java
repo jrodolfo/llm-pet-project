@@ -8,6 +8,7 @@ import net.jrodolfo.llm.config.AppModelProperties;
 import net.jrodolfo.llm.config.BedrockProperties;
 import net.jrodolfo.llm.config.OllamaProperties;
 import net.jrodolfo.llm.dto.AvailableModelsResponse;
+import net.jrodolfo.llm.provider.ChatModelProviderRegistry;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -20,16 +21,21 @@ class AvailableModelsServiceTest {
     @Test
     void bedrockUsesDiscoveredInferenceProfiles() {
         AvailableModelsService service = new AvailableModelsService(
-                new AppModelProperties("bedrock"),
+                new ChatModelProviderRegistry(new AppModelProperties("ollama"), java.util.Map.of(
+                        "ollama", new FakeProvider(),
+                        "bedrock", new FakeProvider()
+                )),
                 new OllamaProperties("http://localhost:11434", "llama3:8b", 10, 60),
                 new BedrockProperties("us-east-2", "us.amazon.nova-pro-v1:0"),
                 new FakeOllamaClient(List.of()),
                 () -> List.of("us.amazon.nova-pro-v1:0", "us.amazon.nova-lite-v1:0")
         );
 
-        AvailableModelsResponse response = service.getAvailableModels();
+        AvailableModelsResponse response = service.getAvailableModels("bedrock");
 
         assertEquals("bedrock", response.provider());
+        assertEquals("ollama", response.defaultProvider());
+        assertEquals(List.of("bedrock", "ollama"), response.providers());
         assertEquals("us.amazon.nova-pro-v1:0", response.defaultModel());
         assertEquals(List.of("us.amazon.nova-pro-v1:0", "us.amazon.nova-lite-v1:0"), response.models());
     }
@@ -37,14 +43,17 @@ class AvailableModelsServiceTest {
     @Test
     void bedrockFallsBackToConfiguredModelWhenDiscoveryFails() {
         AvailableModelsService service = new AvailableModelsService(
-                new AppModelProperties("bedrock"),
+                new ChatModelProviderRegistry(new AppModelProperties("ollama"), java.util.Map.of(
+                        "ollama", new FakeProvider(),
+                        "bedrock", new FakeProvider()
+                )),
                 new OllamaProperties("http://localhost:11434", "llama3:8b", 10, 60),
                 new BedrockProperties("us-east-2", "us.amazon.nova-pro-v1:0"),
                 new FakeOllamaClient(List.of()),
                 () -> { throw new ModelDiscoveryException("bedrock unavailable"); }
         );
 
-        AvailableModelsResponse response = service.getAvailableModels();
+        AvailableModelsResponse response = service.getAvailableModels("bedrock");
 
         assertEquals("bedrock", response.provider());
         assertEquals("us.amazon.nova-pro-v1:0", response.defaultModel());
@@ -54,14 +63,17 @@ class AvailableModelsServiceTest {
     @Test
     void bedrockDiscoveryFailureWithoutConfiguredModelPropagates() {
         AvailableModelsService service = new AvailableModelsService(
-                new AppModelProperties("bedrock"),
+                new ChatModelProviderRegistry(new AppModelProperties("ollama"), java.util.Map.of(
+                        "ollama", new FakeProvider(),
+                        "bedrock", new FakeProvider()
+                )),
                 new OllamaProperties("http://localhost:11434", "llama3:8b", 10, 60),
                 new BedrockProperties("us-east-2", null),
                 new FakeOllamaClient(List.of()),
                 () -> { throw new ModelDiscoveryException("bedrock unavailable"); }
         );
 
-        ModelDiscoveryException exception = assertThrows(ModelDiscoveryException.class, service::getAvailableModels);
+        ModelDiscoveryException exception = assertThrows(ModelDiscoveryException.class, () -> service.getAvailableModels("bedrock"));
 
         assertEquals("bedrock unavailable", exception.getMessage());
     }
@@ -69,18 +81,38 @@ class AvailableModelsServiceTest {
     @Test
     void ollamaUsesInstalledModels() {
         AvailableModelsService service = new AvailableModelsService(
-                new AppModelProperties("ollama"),
+                new ChatModelProviderRegistry(new AppModelProperties("ollama"), java.util.Map.of(
+                        "ollama", new FakeProvider(),
+                        "bedrock", new FakeProvider()
+                )),
                 new OllamaProperties("http://localhost:11434", "llama3:8b", 10, 60),
                 new BedrockProperties("us-east-2", "us.amazon.nova-pro-v1:0"),
                 new FakeOllamaClient(List.of("llama3:8b", "mistral:7b")),
                 null
         );
 
-        AvailableModelsResponse response = service.getAvailableModels();
+        AvailableModelsResponse response = service.getAvailableModels("ollama");
 
         assertEquals("ollama", response.provider());
         assertEquals("llama3:8b", response.defaultModel());
         assertEquals(List.of("llama3:8b", "mistral:7b"), response.models());
+    }
+
+    private static final class FakeProvider implements net.jrodolfo.llm.provider.ChatModelProvider {
+        @Override
+        public net.jrodolfo.llm.dto.ChatResponse chat(net.jrodolfo.llm.provider.ProviderPrompt prompt, String model, net.jrodolfo.llm.dto.ChatToolMetadata toolMetadata, java.util.Map<String, Object> toolResult, String sessionId, net.jrodolfo.llm.dto.PendingToolCallResponse pendingTool) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public net.jrodolfo.llm.provider.StreamingChatResult streamChat(net.jrodolfo.llm.provider.ProviderPrompt prompt, String model, java.util.function.Consumer<String> tokenConsumer) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public String resolveModel(String model) {
+            return model;
+        }
     }
 
     private static final class FakeOllamaClient extends OllamaClient {

@@ -7,6 +7,7 @@ import net.jrodolfo.llm.config.AppModelProperties;
 import net.jrodolfo.llm.config.BedrockProperties;
 import net.jrodolfo.llm.config.OllamaProperties;
 import net.jrodolfo.llm.dto.AvailableModelsResponse;
+import net.jrodolfo.llm.provider.ChatModelProviderRegistry;
 import org.springframework.lang.Nullable;
 import org.springframework.stereotype.Service;
 
@@ -23,33 +24,36 @@ import java.util.List;
 @Service
 public class AvailableModelsService {
 
-    private final AppModelProperties appModelProperties;
+    private final ChatModelProviderRegistry chatModelProviderRegistry;
     private final OllamaProperties ollamaProperties;
     private final BedrockProperties bedrockProperties;
     private final OllamaClient ollamaClient;
     private final BedrockCatalogClient bedrockCatalogClient;
 
     public AvailableModelsService(
-            AppModelProperties appModelProperties,
+            ChatModelProviderRegistry chatModelProviderRegistry,
             OllamaProperties ollamaProperties,
             BedrockProperties bedrockProperties,
             OllamaClient ollamaClient,
             @Nullable BedrockCatalogClient bedrockCatalogClient
     ) {
-        this.appModelProperties = appModelProperties;
+        this.chatModelProviderRegistry = chatModelProviderRegistry;
         this.ollamaProperties = ollamaProperties;
         this.bedrockProperties = bedrockProperties;
         this.ollamaClient = ollamaClient;
         this.bedrockCatalogClient = bedrockCatalogClient;
     }
 
-    public AvailableModelsResponse getAvailableModels() {
-        String provider = normalizeProvider(appModelProperties.provider());
-        if ("bedrock".equals(provider)) {
+    public AvailableModelsResponse getAvailableModels(String provider) {
+        String resolvedProvider = chatModelProviderRegistry.resolveProviderName(provider);
+        chatModelProviderRegistry.get(resolvedProvider);
+        if ("bedrock".equals(resolvedProvider)) {
             List<String> models = resolveBedrockModels();
             String modelId = resolveDefaultBedrockModel(models);
             return new AvailableModelsResponse(
                     "bedrock",
+                    chatModelProviderRegistry.defaultProvider(),
+                    chatModelProviderRegistry.supportedProviders(),
                     modelId,
                     models
             );
@@ -58,6 +62,8 @@ public class AvailableModelsService {
         List<String> models = List.copyOf(new LinkedHashSet<>(ollamaClient.listModels()));
         return new AvailableModelsResponse(
                 "ollama",
+                chatModelProviderRegistry.defaultProvider(),
+                chatModelProviderRegistry.supportedProviders(),
                 normalizeModel(ollamaProperties.defaultModel()),
                 models
         );
@@ -93,13 +99,6 @@ public class AvailableModelsService {
             return models.getFirst();
         }
         return configuredModelId;
-    }
-
-    private String normalizeProvider(String provider) {
-        if (provider == null || provider.isBlank()) {
-            return "ollama";
-        }
-        return provider.trim().toLowerCase();
     }
 
     private String normalizeModel(String model) {

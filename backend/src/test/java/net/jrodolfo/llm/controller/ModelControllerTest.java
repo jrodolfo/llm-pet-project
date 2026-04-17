@@ -34,6 +34,9 @@ class ModelControllerTest {
         mockMvc.perform(get("/api/models"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.provider").value("ollama"))
+                .andExpect(jsonPath("$.defaultProvider").value("ollama"))
+                .andExpect(jsonPath("$.providers[0]").value("bedrock"))
+                .andExpect(jsonPath("$.providers[1]").value("ollama"))
                 .andExpect(jsonPath("$.defaultModel").value("llama3:8b"))
                 .andExpect(jsonPath("$.models[0]").value("llama3:8b"))
                 .andExpect(jsonPath("$.models[1]").value("mistral:7b"));
@@ -49,6 +52,18 @@ class ModelControllerTest {
         mockMvc.perform(get("/api/models"))
                 .andExpect(status().isBadGateway())
                 .andExpect(jsonPath("$.error").value("ollama unavailable"));
+    }
+
+    @Test
+    void invalidProviderMapsToBadRequest() throws Exception {
+        mockMvc = MockMvcBuilders
+                .standaloneSetup(new ModelController(new InvalidProviderAvailableModelsService()))
+                .setMessageConverters(new MappingJackson2HttpMessageConverter(new ObjectMapper()))
+                .build();
+
+        mockMvc.perform(get("/api/models").param("provider", "unsupported"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("unsupported provider"));
     }
 
     @Test
@@ -69,8 +84,8 @@ class ModelControllerTest {
         }
 
         @Override
-        public AvailableModelsResponse getAvailableModels() {
-            return new AvailableModelsResponse("ollama", "llama3:8b", List.of("llama3:8b", "mistral:7b"));
+        public AvailableModelsResponse getAvailableModels(String provider) {
+            return new AvailableModelsResponse("ollama", "ollama", List.of("bedrock", "ollama"), "llama3:8b", List.of("llama3:8b", "mistral:7b"));
         }
     }
 
@@ -80,7 +95,7 @@ class ModelControllerTest {
         }
 
         @Override
-        public AvailableModelsResponse getAvailableModels() {
+        public AvailableModelsResponse getAvailableModels(String provider) {
             throw new OllamaClientException("ollama unavailable");
         }
     }
@@ -91,8 +106,19 @@ class ModelControllerTest {
         }
 
         @Override
-        public AvailableModelsResponse getAvailableModels() {
+        public AvailableModelsResponse getAvailableModels(String provider) {
             throw new ModelDiscoveryException("bedrock unavailable");
+        }
+    }
+
+    private static final class InvalidProviderAvailableModelsService extends AvailableModelsService {
+        private InvalidProviderAvailableModelsService() {
+            super(null, null, null, null, null);
+        }
+
+        @Override
+        public AvailableModelsResponse getAvailableModels(String provider) {
+            throw new net.jrodolfo.llm.service.InvalidProviderException("unsupported provider");
         }
     }
 }

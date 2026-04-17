@@ -52,6 +52,8 @@ describe('Home', () => {
     });
     listAvailableModels.mockResolvedValue({
       provider: 'ollama',
+      defaultProvider: 'ollama',
+      providers: ['bedrock', 'ollama'],
       defaultModel: 'llama3:8b',
       models: ['llama3:8b', 'mistral:7b', 'codellama:70b']
     });
@@ -170,6 +172,7 @@ describe('Home', () => {
     await user.type(screen.getByPlaceholderText(/Type your prompt/i), 'run aws audit');
     await user.click(screen.getByRole('button', { name: /send/i }));
 
+    expect(sendMessage).toHaveBeenCalledWith(expect.objectContaining({ provider: 'ollama', model: 'llama3:8b' }));
     expect((await screen.findAllByText('Audit complete.')).length).toBeGreaterThan(0);
     expect(screen.getByText(/used tool: aws_region_audit/i)).toBeInTheDocument();
     expect(screen.getByText('aws audit')).toBeInTheDocument();
@@ -183,6 +186,8 @@ describe('Home', () => {
   it('shows the active provider in the header for bedrock mode', async () => {
     listAvailableModels.mockResolvedValue({
       provider: 'bedrock',
+      defaultProvider: 'ollama',
+      providers: ['bedrock', 'ollama'],
       defaultModel: 'us.amazon.nova-pro-v1:0',
       models: ['us.amazon.nova-pro-v1:0', 'us.amazon.nova-lite-v1:0']
     });
@@ -190,6 +195,35 @@ describe('Home', () => {
     render(<Home />);
 
     expect(await screen.findByRole('combobox', { name: /model/i })).toHaveValue('us.amazon.nova-pro-v1:0');
+    expect(screen.getByText(/provider: Bedrock/i)).toBeInTheDocument();
+  });
+
+  it('switches provider and reloads provider-specific models', async () => {
+    listAvailableModels
+      .mockResolvedValueOnce({
+        provider: 'ollama',
+        defaultProvider: 'ollama',
+        providers: ['bedrock', 'ollama'],
+        defaultModel: 'llama3:8b',
+        models: ['llama3:8b']
+      })
+      .mockResolvedValueOnce({
+        provider: 'bedrock',
+        defaultProvider: 'ollama',
+        providers: ['bedrock', 'ollama'],
+        defaultModel: 'us.amazon.nova-pro-v1:0',
+        models: ['us.amazon.nova-pro-v1:0', 'us.amazon.nova-lite-v1:0']
+      });
+
+    render(<Home />);
+    const user = userEvent.setup();
+
+    expect(await screen.findByRole('combobox', { name: /chat provider/i })).toHaveValue('ollama');
+    await user.selectOptions(screen.getByRole('combobox', { name: /chat provider/i }), 'bedrock');
+
+    await waitFor(() => {
+      expect(screen.getByRole('combobox', { name: /model/i })).toHaveValue('us.amazon.nova-pro-v1:0');
+    });
     expect(screen.getByText(/provider: Bedrock/i)).toBeInTheDocument();
   });
 
@@ -318,6 +352,8 @@ describe('Home', () => {
   it('shows a clear empty state when no local ollama models are installed', async () => {
     listAvailableModels.mockResolvedValue({
       provider: 'ollama',
+      defaultProvider: 'ollama',
+      providers: ['bedrock', 'ollama'],
       defaultModel: 'llama3:8b',
       models: []
     });

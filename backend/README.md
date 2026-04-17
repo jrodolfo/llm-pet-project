@@ -48,6 +48,7 @@ mvn spring-boot:run
 ```json
 {
   "message": "Explain recursion",
+  "provider": "ollama",
   "model": "llama3:8b",
   "sessionId": "optional-existing-session-id"
 }
@@ -74,6 +75,8 @@ For local provider switching without memorizing JVM flags, use the helper script
 
 - [`../scripts/run-backend-ollama.sh`](../scripts/run-backend-ollama.sh)
 - [`../scripts/run-backend-bedrock.sh`](../scripts/run-backend-bedrock.sh)
+
+Those scripts set the backend default provider. The chat API can still override provider per request at runtime.
 
 `GET /api/models` exposes provider-aware model options for the UI:
 

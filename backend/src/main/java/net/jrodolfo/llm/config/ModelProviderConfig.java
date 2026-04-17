@@ -5,12 +5,16 @@ import net.jrodolfo.llm.client.AwsSdkBedrockRuntimeGateway;
 import net.jrodolfo.llm.client.BedrockCatalogClient;
 import net.jrodolfo.llm.client.AwsSdkBedrockCatalogClient;
 import net.jrodolfo.llm.client.OllamaClient;
-import net.jrodolfo.llm.provider.ChatModelProvider;
 import net.jrodolfo.llm.provider.BedrockChatModelProvider;
+import net.jrodolfo.llm.provider.ChatModelProvider;
+import net.jrodolfo.llm.provider.ChatModelProviderRegistry;
 import net.jrodolfo.llm.provider.OllamaChatModelProvider;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+
+import java.util.LinkedHashMap;
+import java.util.Map;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.bedrock.BedrockClient;
 import software.amazon.awssdk.services.bedrockruntime.BedrockRuntimeAsyncClient;
@@ -20,20 +24,33 @@ import software.amazon.awssdk.services.bedrockruntime.BedrockRuntimeClient;
 public class ModelProviderConfig {
 
     @Bean
-    public ChatModelProvider chatModelProvider(
-            AppModelProperties appModelProperties,
-            OllamaClient ollamaClient,
+    public ChatModelProvider ollamaChatModelProvider(OllamaClient ollamaClient) {
+        return new OllamaChatModelProvider(ollamaClient);
+    }
+
+    @Bean
+    @ConditionalOnProperty(prefix = "bedrock", name = "region")
+    public ChatModelProvider bedrockChatModelProvider(
             BedrockProperties bedrockProperties,
             BedrockRuntimeGateway bedrockRuntimeGateway
     ) {
-        String provider = appModelProperties.provider();
-        if (provider == null || provider.isBlank() || provider.equalsIgnoreCase("ollama")) {
-            return new OllamaChatModelProvider(ollamaClient);
+        return new BedrockChatModelProvider(bedrockRuntimeGateway, bedrockProperties);
+    }
+
+    @Bean
+    public ChatModelProviderRegistry chatModelProviderRegistry(
+            AppModelProperties appModelProperties,
+            ChatModelProvider ollamaChatModelProvider,
+            @org.springframework.beans.factory.annotation.Qualifier("bedrockChatModelProvider")
+            org.springframework.beans.factory.ObjectProvider<ChatModelProvider> bedrockChatModelProviderProvider
+    ) {
+        Map<String, ChatModelProvider> providers = new LinkedHashMap<>();
+        providers.put("ollama", ollamaChatModelProvider);
+        ChatModelProvider bedrockChatModelProvider = bedrockChatModelProviderProvider.getIfAvailable();
+        if (bedrockChatModelProvider != null) {
+            providers.put("bedrock", bedrockChatModelProvider);
         }
-        if (provider.equalsIgnoreCase("bedrock")) {
-            return new BedrockChatModelProvider(bedrockRuntimeGateway, bedrockProperties);
-        }
-        throw new IllegalStateException("Unsupported model provider: " + provider + ". Supported providers are 'ollama' and 'bedrock'.");
+        return new ChatModelProviderRegistry(appModelProperties, providers);
     }
 
     @Bean

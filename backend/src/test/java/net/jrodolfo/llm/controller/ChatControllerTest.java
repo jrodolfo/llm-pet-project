@@ -9,6 +9,7 @@ import net.jrodolfo.llm.dto.ModelProviderMetadata;
 import net.jrodolfo.llm.dto.PendingToolCallResponse;
 import net.jrodolfo.llm.model.ChatSession;
 import net.jrodolfo.llm.provider.ChatModelProvider;
+import net.jrodolfo.llm.provider.ChatModelProviderRegistry;
 import net.jrodolfo.llm.provider.ProviderPrompt;
 import net.jrodolfo.llm.provider.StreamingChatResult;
 import net.jrodolfo.llm.service.ChatOrchestratorService;
@@ -35,11 +36,10 @@ class ChatControllerTest {
     @Test
     void failedDeltaSendDoesNotPersistAbortedTurn() {
         TestOrchestrator orchestrator = new TestOrchestrator();
-        SynchronousStreamingProvider provider = new SynchronousStreamingProvider();
-        ChatController controller = new ChatController(orchestrator, provider, new ObjectMapper(), Runnable::run);
+        ChatController controller = new ChatController(orchestrator, new ObjectMapper(), Runnable::run);
         FailingEmitter emitter = new FailingEmitter(2);
 
-        controller.stream(new ChatRequest("hello", "llama3:8b", null), emitter);
+        controller.stream(new ChatRequest("hello", "ollama", "llama3:8b", null), emitter);
 
         assertEquals(0, orchestrator.completePreparedChatCalls);
         assertFalse(emitter.completedWithError);
@@ -48,13 +48,14 @@ class ChatControllerTest {
     @Test
     void completionCallbackCancelsActiveStreamAndSkipsPersistence() throws Exception {
         TestOrchestrator orchestrator = new TestOrchestrator();
-        DelayedStreamingProvider provider = new DelayedStreamingProvider();
         Executor executor = Executors.newSingleThreadExecutor();
         try {
-            ChatController controller = new ChatController(orchestrator, provider, new ObjectMapper(), executor);
+            DelayedStreamingProvider provider = new DelayedStreamingProvider();
+            orchestrator.provider = provider;
+            ChatController controller = new ChatController(orchestrator, new ObjectMapper(), executor);
             CallbackEmitter emitter = new CallbackEmitter();
 
-            controller.stream(new ChatRequest("hello", "llama3:8b", null), emitter);
+            controller.stream(new ChatRequest("hello", "ollama", "llama3:8b", null), emitter);
             assertTrue(provider.streamStarted.await(2, TimeUnit.SECONDS));
 
             emitter.fireCompletion();
@@ -70,18 +71,19 @@ class ChatControllerTest {
     }
 
     private static final class TestOrchestrator extends ChatOrchestratorService {
+        private ChatModelProvider provider = new SynchronousStreamingProvider();
         private final PreparedChat preparedChat;
         private int completePreparedChatCalls;
 
         private TestOrchestrator() {
-            super(null, null, null, null, null, null, new AppStorageProperties("data/sessions", "scripts/reports"));
+            super(new ChatModelProviderRegistry(new net.jrodolfo.llm.config.AppModelProperties("ollama"), java.util.Map.of("ollama", new SynchronousStreamingProvider())), null, null, null, null, null, new AppStorageProperties("data/sessions", "scripts/reports"));
             ChatSession session = ChatSession.create("session-1", "llama3:8b", Instant.parse("2026-04-12T00:00:00Z"));
-            this.preparedChat = new PreparedChat(ProviderPrompt.forPrompt("prompt"), "llama3:8b", null, null, null, session, null);
+            this.preparedChat = new PreparedChat(provider, ProviderPrompt.forPrompt("prompt"), "llama3:8b", null, null, null, session, null);
         }
 
         @Override
-        public PreparedChat prepareChat(String message, String model, String sessionId) {
-            return preparedChat;
+        public PreparedChat prepareChat(String message, String provider, String model, String sessionId) {
+            return new PreparedChat(this.provider, preparedChat.prompt(), preparedChat.model(), preparedChat.toolMetadata(), preparedChat.toolResult(), preparedChat.pendingTool(), preparedChat.session(), preparedChat.immediateResponse());
         }
 
         @Override

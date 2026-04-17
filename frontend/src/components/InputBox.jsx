@@ -4,6 +4,9 @@ function InputBox({
   disabled,
   loadingMessage = '',
   statusMessage = '',
+  providers = [],
+  selectedProvider = '',
+  onProviderChange,
   models = [],
   selectedModel = '',
   onModelChange,
@@ -20,13 +23,26 @@ function InputBox({
       return;
     }
 
-    onSend({ message: trimmed, model: selectedModel, streaming });
+    onSend({ message: trimmed, provider: selectedProvider, model: selectedModel, streaming });
     setMessage('');
   };
 
   return (
     <form className="input-box" onSubmit={submit}>
       <div className="controls-row">
+        <select
+          aria-label="Chat provider"
+          value={selectedProvider}
+          onChange={(event) => onProviderChange(event.target.value)}
+          disabled={disabled}
+        >
+          {providers.map((option) => (
+            <option key={option} value={option}>
+              {option}
+            </option>
+          ))}
+        </select>
+
         <select
           aria-label="Model"
           value={selectedModel}

@@ -16,6 +16,7 @@ import net.jrodolfo.llm.dto.ReadReportSummaryToolRequest;
 import net.jrodolfo.llm.dto.S3CloudwatchReportToolRequest;
 import net.jrodolfo.llm.model.PendingToolCall;
 import net.jrodolfo.llm.provider.ChatModelProvider;
+import net.jrodolfo.llm.provider.ChatModelProviderRegistry;
 import net.jrodolfo.llm.provider.ProviderPrompt;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -41,7 +42,7 @@ class ChatOrchestratorServiceTest {
         FileChatSessionStore sessionStore = newSessionStore();
         ChatOrchestratorService orchestrator = newOrchestrator(chatModelProvider, new FakeMcpService(), sessionStore, "rules");
 
-        ChatResponse response = orchestrator.chat("explain recursion", "llama3:8b", null);
+        ChatResponse response = orchestrator.chat("explain recursion", "ollama", "llama3:8b", null);
 
         assertEquals("plain response", response.response());
         assertEquals(2, chatModelProvider.lastMessages.size());
@@ -67,8 +68,8 @@ class ChatOrchestratorServiceTest {
         FileChatSessionStore sessionStore = newSessionStore();
         ChatOrchestratorService orchestrator = newOrchestrator(chatModelProvider, new FakeMcpService(), sessionStore, "rules");
 
-        ChatResponse firstResponse = orchestrator.chat("explain recursion", "llama3:8b", null);
-        ChatResponse secondResponse = orchestrator.chat("give me an example", "llama3:8b", firstResponse.sessionId());
+        ChatResponse firstResponse = orchestrator.chat("explain recursion", "ollama", "llama3:8b", null);
+        ChatResponse secondResponse = orchestrator.chat("give me an example", "ollama", "llama3:8b", firstResponse.sessionId());
 
         assertEquals(firstResponse.sessionId(), secondResponse.sessionId());
         assertEquals("assistant", chatModelProvider.lastMessages.get(2).role());
@@ -86,7 +87,7 @@ class ChatOrchestratorServiceTest {
         FileChatSessionStore sessionStore = newSessionStore();
         ChatOrchestratorService orchestrator = newOrchestrator(chatModelProvider, new FakeMcpService(), sessionStore, "rules");
 
-        ChatResponse response = orchestrator.chat("run aws audit for us-east-2 sts", "llama3:8b", null);
+        ChatResponse response = orchestrator.chat("run aws audit for us-east-2 sts", "ollama", "llama3:8b", null);
 
         assertNotNull(response.tool());
         assertTrue(response.tool().used());
@@ -106,7 +107,7 @@ class ChatOrchestratorServiceTest {
         FileChatSessionStore sessionStore = newSessionStore();
         ChatOrchestratorService orchestrator = newOrchestrator(chatModelProvider, new ErrorMcpService(), sessionStore, "rules");
 
-        ChatResponse response = orchestrator.chat("run aws audit for us-east-2 sts", "llama3:8b", null);
+        ChatResponse response = orchestrator.chat("run aws audit for us-east-2 sts", "ollama", "llama3:8b", null);
 
         assertTrue(response.response().contains("I tried to use the local tool"));
         assertNotNull(response.tool());
@@ -123,7 +124,7 @@ class ChatOrchestratorServiceTest {
         FileChatSessionStore sessionStore = newSessionStore();
         ChatOrchestratorService orchestrator = newOrchestrator(chatModelProvider, new FakeMcpService(), sessionStore, "rules");
 
-        ChatResponse response = orchestrator.chat("check bucket metrics for the last 7 days", "llama3:8b", null);
+        ChatResponse response = orchestrator.chat("check bucket metrics for the last 7 days", "ollama", "llama3:8b", null);
 
         assertTrue(response.response().contains("I can run the S3 CloudWatch report, but I need the bucket name."));
         assertNotNull(response.tool());
@@ -141,7 +142,7 @@ class ChatOrchestratorServiceTest {
         FileChatSessionStore sessionStore = newSessionStore();
         ChatOrchestratorService orchestrator = newOrchestrator(chatModelProvider, new FakeMcpService(), sessionStore, "rules");
 
-        ChatResponse response = orchestrator.chat("read the latest report", "llama3:8b", null);
+        ChatResponse response = orchestrator.chat("read the latest report", "ollama", "llama3:8b", null);
 
         assertTrue(response.response().contains("latest audit report or the latest s3 cloudwatch report"));
         assertNotNull(response.tool());
@@ -159,8 +160,8 @@ class ChatOrchestratorServiceTest {
         FakeMcpService mcpService = new FakeMcpService();
         ChatOrchestratorService orchestrator = newOrchestrator(chatModelProvider, mcpService, sessionStore, "rules");
 
-        ChatResponse clarification = orchestrator.chat("check bucket metrics for the last 7 days", "llama3:8b", null);
-        ChatResponse followUp = orchestrator.chat("jrodolfo.net", "llama3:8b", clarification.sessionId());
+        ChatResponse clarification = orchestrator.chat("check bucket metrics for the last 7 days", "ollama", "llama3:8b", null);
+        ChatResponse followUp = orchestrator.chat("jrodolfo.net", "ollama", "llama3:8b", clarification.sessionId());
 
         assertEquals("jrodolfo.net", mcpService.lastS3Request.bucket());
         assertEquals("success", followUp.tool().status());
@@ -175,8 +176,8 @@ class ChatOrchestratorServiceTest {
         FakeMcpService mcpService = new FakeMcpService();
         ChatOrchestratorService orchestrator = newOrchestrator(chatModelProvider, mcpService, sessionStore, "rules");
 
-        ChatResponse clarification = orchestrator.chat("read the latest report", "llama3:8b", null);
-        ChatResponse followUp = orchestrator.chat("audit", "llama3:8b", clarification.sessionId());
+        ChatResponse clarification = orchestrator.chat("read the latest report", "ollama", "llama3:8b", null);
+        ChatResponse followUp = orchestrator.chat("audit", "ollama", "llama3:8b", clarification.sessionId());
 
         assertEquals("audit", mcpService.lastListReportsRequest.reportType());
         assertEquals("/tmp/report-1", mcpService.lastReadReportSummaryRequest.runDir());
@@ -190,8 +191,8 @@ class ChatOrchestratorServiceTest {
         FileChatSessionStore sessionStore = newSessionStore();
         ChatOrchestratorService orchestrator = newOrchestrator(chatModelProvider, new FakeMcpService(), sessionStore, "rules");
 
-        ChatResponse clarification = orchestrator.chat("check bucket metrics for the last 7 days", "llama3:8b", null);
-        ChatResponse followUp = orchestrator.chat("explain recursion", "llama3:8b", clarification.sessionId());
+        ChatResponse clarification = orchestrator.chat("check bucket metrics for the last 7 days", "ollama", "llama3:8b", null);
+        ChatResponse followUp = orchestrator.chat("explain recursion", "ollama", "llama3:8b", clarification.sessionId());
 
         assertEquals("plain response", followUp.response());
         assertNull(followUp.tool());
@@ -203,7 +204,7 @@ class ChatOrchestratorServiceTest {
         FileChatSessionStore sessionStore = newSessionStore();
         ChatOrchestratorService orchestrator = newOrchestrator(new FakeChatModelProvider(), new FakeMcpService(), sessionStore, "rules");
 
-        ChatOrchestratorService.PreparedChat preparedChat = orchestrator.prepareChat("explain recursion", "llama3:8b", null);
+        ChatOrchestratorService.PreparedChat preparedChat = orchestrator.prepareChat("explain recursion", "ollama", "llama3:8b", null);
         var persistedSession = orchestrator.completePreparedChat(
                 preparedChat,
                 "streamed response",
@@ -234,7 +235,7 @@ class ChatOrchestratorServiceTest {
         FileChatSessionStore sessionStore = newSessionStore();
         ChatOrchestratorService orchestrator = newOrchestrator(chatModelProvider, new FakeMcpService(), sessionStore, "hybrid");
 
-        ChatResponse response = orchestrator.chat("please audit my aws account in us-east-2 with sts", "llama3:8b", null);
+        ChatResponse response = orchestrator.chat("please audit my aws account in us-east-2 with sts", "ollama", "llama3:8b", null);
 
         assertNotNull(response.tool());
         assertEquals("aws_region_audit", response.tool().name());
@@ -248,7 +249,7 @@ class ChatOrchestratorServiceTest {
         FileChatSessionStore sessionStore = newSessionStore();
         ChatOrchestratorService orchestrator = newOrchestrator(chatModelProvider, new FakeMcpService(), sessionStore, "hybrid");
 
-        ChatResponse response = orchestrator.chat("Translate \"Good morning!\" to French.", "llama3:8b", null);
+        ChatResponse response = orchestrator.chat("Translate \"Good morning!\" to French.", "ollama", "llama3:8b", null);
 
         assertEquals("plain response", response.response());
         assertNull(response.tool());
@@ -265,7 +266,7 @@ class ChatOrchestratorServiceTest {
         FakeMcpService mcpService = new FakeMcpService();
         ChatOrchestratorService orchestrator = newOrchestrator(chatModelProvider, mcpService, sessionStore, "hybrid");
 
-        ChatResponse response = orchestrator.chat("run aws audit for us-east-2 sts", "llama3:8b", null);
+        ChatResponse response = orchestrator.chat("run aws audit for us-east-2 sts", "ollama", "llama3:8b", null);
 
         assertNotNull(response.tool());
         assertEquals("aws_region_audit", response.tool().name());
@@ -290,7 +291,7 @@ class ChatOrchestratorServiceTest {
         FakeMcpService mcpService = new FakeMcpService();
         ChatOrchestratorService orchestrator = newOrchestrator(chatModelProvider, mcpService, sessionStore, "hybrid");
 
-        ChatResponse clarification = orchestrator.chat("check s3 cloudwatch metrics for the last 7 days", "llama3:8b", null);
+        ChatResponse clarification = orchestrator.chat("check s3 cloudwatch metrics for the last 7 days", "ollama", "llama3:8b", null);
         chatModelProvider.enqueuePlannerResponse("""
                 {
                   "action": "none",
@@ -313,7 +314,7 @@ class ChatOrchestratorServiceTest {
                 }
                 """);
 
-        ChatResponse followUp = orchestrator.chat("jrodolfo.net", "llama3:8b", clarification.sessionId());
+        ChatResponse followUp = orchestrator.chat("jrodolfo.net", "ollama", "llama3:8b", clarification.sessionId());
 
         assertEquals("jrodolfo.net", mcpService.lastS3Request.bucket());
         assertEquals("success", followUp.tool().status());
@@ -338,7 +339,7 @@ class ChatOrchestratorServiceTest {
         FakeMcpService mcpService = new FakeMcpService();
         ChatOrchestratorService orchestrator = newOrchestrator(chatModelProvider, mcpService, sessionStore, "hybrid");
 
-        ChatResponse clarification = orchestrator.chat("check s3 cloudwatch metrics for the last 7 days", "llama3:8b", null);
+        ChatResponse clarification = orchestrator.chat("check s3 cloudwatch metrics for the last 7 days", "ollama", "llama3:8b", null);
         chatModelProvider.enqueuePlannerResponse("""
                 {
                   "action": "clarification_needed",
@@ -351,7 +352,7 @@ class ChatOrchestratorServiceTest {
                 }
                 """);
 
-        ChatResponse followUp = orchestrator.chat("jrodolfo.net", "llama3:8b", clarification.sessionId());
+        ChatResponse followUp = orchestrator.chat("jrodolfo.net", "ollama", "llama3:8b", clarification.sessionId());
 
         assertEquals("jrodolfo.net", mcpService.lastS3Request.bucket());
         assertEquals("success", followUp.tool().status());
@@ -371,12 +372,16 @@ class ChatOrchestratorServiceTest {
             String routingMode
     ) {
         ObjectMapper objectMapper = new ObjectMapper();
+        ChatModelProviderRegistry chatModelProviderRegistry = new ChatModelProviderRegistry(
+                new net.jrodolfo.llm.config.AppModelProperties("ollama"),
+                Map.of("ollama", chatModelProvider)
+        );
         return new ChatOrchestratorService(
-                chatModelProvider,
+                chatModelProviderRegistry,
                 mcpService,
                 new ToolDecisionService(
                         new AppToolsProperties(routingMode, false),
-                        new LlmToolPlannerService(chatModelProvider, objectMapper),
+                        new LlmToolPlannerService(chatModelProviderRegistry, objectMapper),
                         new ChatToolRouterService()
                 ),
                 new ChatMemoryService(sessionStore, new ChatSessionMetadataService(), new SessionIdPolicy()),

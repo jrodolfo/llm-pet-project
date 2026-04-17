@@ -115,7 +115,7 @@ cd scripts
 ./run-backend-ollama.sh
 ```
 
-If you want Bedrock instead of Ollama, use `./run-backend-bedrock.sh` and see [docs/providers.md](./docs/providers.md).
+If you want Bedrock as the default backend provider instead of Ollama, use `./run-backend-bedrock.sh` and see [docs/providers.md](./docs/providers.md).
 
 Backend URLs:
 
@@ -139,7 +139,7 @@ Frontend URL:
 
 - `http://localhost:5173`
 
-The frontend model selector now loads from the backend's `/api/models` endpoint. For Ollama, the UI only offers locally installed models. If no local models are installed, the UI shows a clear pull hint instead of failing only after submit.
+The frontend provider and model selectors now load from the backend's `/api/models` endpoint. You can switch between supported providers at runtime without restarting the backend. For Ollama, the UI only offers locally installed models. If no local models are installed, the UI shows a clear pull hint instead of failing only after submit.
 
 ### 4. Optional: build the local MCP server
 

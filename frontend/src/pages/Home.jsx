@@ -24,9 +24,10 @@ function Home() {
   const [loadingMessage, setLoadingMessage] = useState('');
   const [loadingStartedAt, setLoadingStartedAt] = useState(null);
   const [loadingElapsedSeconds, setLoadingElapsedSeconds] = useState(0);
+  const [availableProviders, setAvailableProviders] = useState([]);
+  const [selectedProvider, setSelectedProvider] = useState('');
   const [availableModels, setAvailableModels] = useState([]);
   const [selectedModel, setSelectedModel] = useState('');
-  const [activeProvider, setActiveProvider] = useState('ollama');
   const [modelsLoading, setModelsLoading] = useState(true);
   const [modelsLoadFailed, setModelsLoadFailed] = useState(false);
   const [error, setError] = useState('');
@@ -144,15 +145,31 @@ function Home() {
     }
   }
 
-  async function loadAvailableModels() {
+  async function loadAvailableModels(provider) {
     try {
       setModelsLoading(true);
       setModelsLoadFailed(false);
-      const payload = await listAvailableModels();
+      const payload = await listAvailableModels(provider);
+      const providers = Array.isArray(payload.providers) ? payload.providers : [];
       const models = Array.isArray(payload.models) ? payload.models : [];
       const defaultModel = payload.defaultModel && models.includes(payload.defaultModel) ? payload.defaultModel : '';
-      setActiveProvider(payload.provider || 'ollama');
+      setAvailableProviders(providers);
       setAvailableModels(models);
+      setSelectedProvider((current) => {
+        if (provider && providers.includes(provider)) {
+          return provider;
+        }
+        if (current && providers.includes(current)) {
+          return current;
+        }
+        if (payload.provider && providers.includes(payload.provider)) {
+          return payload.provider;
+        }
+        if (payload.defaultProvider && providers.includes(payload.defaultProvider)) {
+          return payload.defaultProvider;
+        }
+        return providers[0] || payload.provider || payload.defaultProvider || '';
+      });
       // Preserve the current selection when still valid; otherwise use the provider default or
       // the first available model.
       setSelectedModel((current) => {
@@ -167,7 +184,9 @@ function Home() {
     } catch (err) {
       setModelsLoadFailed(true);
       setError(err.message || 'Failed to load available models.');
+      setAvailableProviders([]);
       setAvailableModels([]);
+      setSelectedProvider('');
       setSelectedModel('');
     } finally {
       setModelsLoading(false);
@@ -312,7 +331,13 @@ function Home() {
     }
   };
 
-  const handleSend = async ({ message, model, streaming }) => {
+  const handleProviderChange = async (provider) => {
+    setSelectedProvider(provider);
+    setSelectedModel('');
+    await loadAvailableModels(provider);
+  };
+
+  const handleSend = async ({ message, provider, model, streaming }) => {
     const requestStartedAt = Date.now();
     setError('');
     setLoading(true);
@@ -322,7 +347,7 @@ function Home() {
 
     try {
       if (!streaming) {
-        const payload = await sendMessage({ message, model, sessionId });
+        const payload = await sendMessage({ message, provider, model, sessionId });
         setSessionId((current) => payload.sessionId || current);
         setPendingTool(payload.pendingTool || null);
         addMessage(
@@ -343,6 +368,7 @@ function Home() {
         addMessage('assistant', '');
         await streamMessage({
           message,
+          provider,
           model,
           sessionId,
           onEvent: (event) => {
@@ -497,7 +523,7 @@ function Home() {
         <header>
           <div>
             <h1>Local GenAI Lab</h1>
-            <p>{`React + Spring Boot + provider: ${formatProviderName(activeProvider)}`}</p>
+            <p>{`React + Spring Boot + provider: ${formatProviderName(selectedProvider)}`}</p>
           </div>
           <label className="debug-toggle">
             <input
@@ -585,11 +611,14 @@ function Home() {
           loadingMessage={loading ? loadingStatusMessage : modelsLoading ? 'Loading available models...' : ''}
           statusMessage={
             !modelsLoading && !modelsLoadFailed && availableModels.length === 0
-              ? activeProvider === 'ollama'
+              ? selectedProvider === 'ollama'
                 ? 'No Ollama models are installed locally. Run ollama pull llama3:8b and refresh.'
                 : 'No models are configured for the active provider.'
               : ''
           }
+          providers={availableProviders}
+          selectedProvider={selectedProvider}
+          onProviderChange={handleProviderChange}
           models={availableModels}
           selectedModel={selectedModel}
           onModelChange={setSelectedModel}

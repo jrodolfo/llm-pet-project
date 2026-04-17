@@ -7,6 +7,7 @@ import net.jrodolfo.llm.dto.ChatResponse;
 import net.jrodolfo.llm.dto.ModelProviderMetadata;
 import net.jrodolfo.llm.model.PendingToolCall;
 import net.jrodolfo.llm.provider.ChatModelProvider;
+import net.jrodolfo.llm.provider.ChatModelProviderRegistry;
 import net.jrodolfo.llm.provider.ProviderPrompt;
 import org.junit.jupiter.api.Test;
 
@@ -39,15 +40,19 @@ class ToolDecisionServiceEvaluationTest {
 
         for (EvaluationFixture fixture : fixtures) {
             FakeChatModelProvider chatModelProvider = new FakeChatModelProvider(fixture.plannerResponse());
+            ChatModelProviderRegistry registry = new ChatModelProviderRegistry(
+                    new net.jrodolfo.llm.config.AppModelProperties("ollama"),
+                    java.util.Map.of("ollama", chatModelProvider)
+            );
             ToolDecisionService service = new ToolDecisionService(
                     new AppToolsProperties(fixture.mode(), false),
-                    new LlmToolPlannerService(chatModelProvider, objectMapper),
+                    new LlmToolPlannerService(registry, objectMapper),
                     new ChatToolRouterService()
             );
 
             ToolDecisionService.DecisionTrace trace = fixture.pendingTool() == null
-                    ? service.routeDetailed(fixture.message(), "llama3:8b")
-                    : service.resolvePendingDetailed(toPendingToolCall(fixture.pendingTool()), fixture.message(), "llama3:8b");
+                    ? service.routeDetailed(fixture.message(), "ollama", "llama3:8b")
+                    : service.resolvePendingDetailed(toPendingToolCall(fixture.pendingTool()), fixture.message(), "ollama", "llama3:8b");
 
             assertEquals(ChatToolRouterService.DecisionType.valueOf(fixture.expectedType()), trace.finalDecision().type(), fixture.name());
             assertEquals(fixture.expectedUseTool(), trace.finalDecision().shouldUseTool(), fixture.name());

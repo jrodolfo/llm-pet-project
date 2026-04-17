@@ -1,10 +1,14 @@
 # Providers
 
-Use this document when you want to switch the backend between `ollama` and `bedrock` without bloating the main README.
+Use this document when you want to control the backend default provider and understand how runtime provider switching works in the UI.
 
 ## Overview
 
-The frontend always talks to the Spring Boot backend. The backend decides which model provider is active.
+The frontend always talks to the Spring Boot backend.
+
+- the backend still has a configured default provider
+- the UI can now switch provider per request without restarting the backend
+- the helper scripts below set the backend default provider for a local session
 
 Supported providers:
 
@@ -79,7 +83,7 @@ BEDROCK_REGION=us-east-1 BEDROCK_MODEL_ID=amazon.nova-lite-v1:0 ./run-backend-be
 
 ## Verification
 
-After the backend starts, verify the active provider:
+After the backend starts, verify the default provider:
 
 - health: `http://localhost:8080/actuator/health`
 - info: `http://localhost:8080/actuator/info`
@@ -94,6 +98,7 @@ cd scripts
 ## Notes
 
 - the frontend model selector is provider-aware
+- the frontend provider selector can switch between supported providers at runtime without restarting the backend
 - for `ollama`, the UI only offers models installed locally
 - for `bedrock`, the backend tries to list available inference profiles in the configured region and falls back to the configured model id if discovery is unavailable
 - successful MCP/tool execution still enriches prompts before the backend calls the active provider
