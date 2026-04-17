@@ -16,6 +16,7 @@ function Home() {
   const [sessionId, setSessionId] = useState(null);
   const [pendingTool, setPendingTool] = useState(null);
   const [sessions, setSessions] = useState([]);
+  const [showSessionsSidebar, setShowSessionsSidebar] = useState(true);
   const [sessionSearch, setSessionSearch] = useState('');
   const [providerFilter, setProviderFilter] = useState('');
   const [toolUsageFilter, setToolUsageFilter] = useState('');
@@ -412,8 +413,9 @@ function Home() {
 
   return (
     <main className="home-page">
-      <section className="chat-layout">
-        <aside className="session-sidebar">
+      <section className={`chat-layout ${showSessionsSidebar ? '' : 'sidebar-hidden'}`.trim()}>
+        {showSessionsSidebar ? (
+        <aside id="sessions-sidebar" className="session-sidebar">
           <div className="session-sidebar-header">
             <h2>Sessions</h2>
             <div className="session-sidebar-actions">
@@ -425,10 +427,10 @@ function Home() {
                 aria-label="Import session file"
                 onChange={handleImportChange}
               />
-              <button type="button" onClick={handleImportClick} disabled={loading}>
+              <button type="button" className="page-action-button" onClick={handleImportClick} disabled={loading}>
                 Import JSON
               </button>
-              <button type="button" onClick={startNewChat} disabled={loading}>
+              <button type="button" className="page-action-button" onClick={startNewChat} disabled={loading}>
                 New chat
               </button>
             </div>
@@ -489,7 +491,7 @@ function Home() {
                 </button>
                 <button
                   type="button"
-                  className="session-export"
+                  className="page-action-button"
                   onClick={() => downloadSession(session.sessionId, 'json')}
                   disabled={loading}
                   aria-label={`Export session ${session.title}`}
@@ -498,7 +500,7 @@ function Home() {
                 </button>
                 <button
                   type="button"
-                  className="session-export"
+                  className="page-action-button"
                   onClick={() => downloadSession(session.sessionId, 'markdown')}
                   disabled={loading}
                   aria-label={`Export markdown session ${session.title}`}
@@ -507,7 +509,7 @@ function Home() {
                 </button>
                 <button
                   type="button"
-                  className="session-delete"
+                  className="page-action-button page-action-button-danger"
                   onClick={() => removeSession(session.sessionId)}
                   disabled={loading}
                   aria-label={`Delete session ${session.title}`}
@@ -518,6 +520,7 @@ function Home() {
             ))}
           </div>
         </aside>
+        ) : null}
 
         <section className="chat-card">
         <header>
@@ -525,14 +528,25 @@ function Home() {
             <h1>Local GenAI Lab</h1>
             <p>{`React + Spring Boot + provider: ${formatProviderName(selectedProvider)}`}</p>
           </div>
-          <label className="debug-toggle">
-            <input
-              type="checkbox"
-              checked={showTechnicalDetails}
-              onChange={(event) => setShowTechnicalDetails(event.target.checked)}
-            />
-            <span>show technical details</span>
-          </label>
+          <div className="header-controls">
+            <label className="debug-toggle">
+              <input
+                type="checkbox"
+                checked={showTechnicalDetails}
+                onChange={(event) => setShowTechnicalDetails(event.target.checked)}
+              />
+              <span>show technical details</span>
+            </label>
+            <button
+              type="button"
+              className="page-action-button sidebar-toggle"
+              aria-expanded={showSessionsSidebar}
+              aria-controls="sessions-sidebar"
+              onClick={() => setShowSessionsSidebar((current) => !current)}
+            >
+              {showSessionsSidebar ? 'Hide Sessions' : 'Show Sessions'}
+            </button>
+          </div>
         </header>
 
         {error ? <div className="error-banner">{error}</div> : null}

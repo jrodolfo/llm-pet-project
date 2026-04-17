@@ -227,6 +227,25 @@ describe('Home', () => {
     expect(screen.getByText(/provider: Bedrock/i)).toBeInTheDocument();
   });
 
+  it('shows the sessions sidebar by default and toggles it on demand', async () => {
+    render(<Home />);
+    const user = userEvent.setup();
+
+    expect(await screen.findByRole('button', { name: /hide sessions/i })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: /sessions/i })).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: /hide sessions/i }));
+
+    expect(screen.queryByRole('heading', { name: /sessions/i })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /show sessions/i })).toBeInTheDocument();
+    expect(screen.getByPlaceholderText(/type your prompt/i)).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: /show sessions/i }));
+
+    expect(screen.getByRole('heading', { name: /sessions/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /hide sessions/i })).toBeInTheDocument();
+  });
+
   it('shows a clear waiting message while a non-streaming request is in flight', async () => {
     let resolveRequest;
     sendMessage.mockImplementation(

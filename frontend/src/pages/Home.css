@@ -12,6 +12,10 @@
   gap: 18px;
 }
 
+.chat-layout.sidebar-hidden {
+  grid-template-columns: minmax(0, 1fr);
+}
+
 .session-sidebar {
   background: #f8fafc;
   border: 1px solid #e2e8f0;
@@ -45,15 +49,35 @@
   font-size: 1rem;
 }
 
-.session-sidebar-header button,
-.session-export,
-.session-delete {
+.page-action-button {
   border: 1px solid #cbd5e1;
   border-radius: 8px;
   background: #ffffff;
+  color: #0f172a;
   padding: 8px 10px;
   cursor: pointer;
   font: inherit;
+}
+
+.page-action-button:hover {
+  background: #f8fafc;
+  border-color: #94a3b8;
+}
+
+.page-action-button:focus-visible {
+  outline: 2px solid #bfdbfe;
+  outline-offset: 2px;
+}
+
+.page-action-button-danger {
+  border-color: #fecaca;
+  background: #fff1f2;
+  color: #b91c1c;
+}
+
+.page-action-button-danger:hover {
+  background: #ffe4e6;
+  border-color: #fda4af;
 }
 
 .session-list {
@@ -165,9 +189,20 @@
   gap: 16px;
 }
 
+.header-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
 .chat-card header p {
   margin: 4px 0 0;
   color: #334155;
+}
+
+.sidebar-toggle {
+  font-weight: 600;
+  white-space: nowrap;
 }
 
 .debug-toggle {
