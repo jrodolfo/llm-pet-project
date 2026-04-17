@@ -30,6 +30,8 @@ It focuses on:
 
 High-level interaction flows:
 
+For the full system-level view, see [docs/architecture.md](./docs/architecture.md).
+
 ```text
 React -> Spring Boot
           |-> MCP -> Shell Scripts -> AWS CLI -> Report artifacts
