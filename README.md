@@ -14,6 +14,8 @@ Not just a chatbot UI.
 
 This project combines a React frontend, a Spring Boot orchestration backend, local and managed model providers, persistent session memory, and MCP-backed AWS tooling in one full-stack repository.
 
+![Local GenAI Lab UI](./docs/images/local-genai-lab.webp)
+
 ## Why This Matters
 
 Most LLM demos stop at chat. This project explores how to connect models to real systems.
