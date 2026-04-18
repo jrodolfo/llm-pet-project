@@ -1,0 +1,7 @@
+{
+  "account_id": "123456789012",
+  "success_count": 10,
+  "failure_count": 0,
+  "report_path": "reports/audit/aws-audit-valid/report.txt",
+  "output_directory": "reports/audit/aws-audit-valid"
+}

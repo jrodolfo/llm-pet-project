@@ -15,6 +15,18 @@ export function getReportsBaseDir(reportType: ReportType): string {
   return reportType === "audit" ? config.auditReportsDir : config.s3ReportsDir;
 }
 
+async function hasReportBundle(runDir: string): Promise<boolean> {
+  try {
+    await Promise.all([
+      fs.access(path.join(runDir, "summary.json")),
+      fs.access(path.join(runDir, "report.txt")),
+    ]);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export async function listReportDirectories(reportType: ReportType): Promise<ReportDirectory[]> {
   const baseDir = getReportsBaseDir(reportType);
   const entries = await fs.readdir(baseDir, { withFileTypes: true });
@@ -24,6 +36,9 @@ export async function listReportDirectories(reportType: ReportType): Promise<Rep
       .filter((entry) => entry.isDirectory())
       .map(async (entry) => {
         const runDir = path.join(baseDir, entry.name);
+        if (!(await hasReportBundle(runDir))) {
+          return null;
+        }
         const stats = await fs.stat(runDir);
         return {
           reportType,
@@ -36,6 +51,7 @@ export async function listReportDirectories(reportType: ReportType): Promise<Rep
   );
 
   return directories
+    .filter((directory): directory is NonNullable<typeof directory> => directory !== null)
     .sort((left, right) => right.mtimeMs - left.mtimeMs)
     .map(({ mtimeMs: _mtimeMs, ...directory }) => directory);
 }
