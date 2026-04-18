@@ -15,6 +15,8 @@ At runtime, the backend is the central coordinator. The frontend never talks dir
 
 ## Core Diagram
 
+![Architecture overview](./images/architecture-overview.svg)
+
 ```text
 React UI
   -> Spring Boot API
