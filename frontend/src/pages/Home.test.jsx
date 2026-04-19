@@ -263,7 +263,7 @@ describe('Home', () => {
     await user.type(screen.getByPlaceholderText(/Type your prompt/i), 'run aws audit');
     await user.click(screen.getByRole('button', { name: /send/i }));
 
-    expect(screen.getByRole('button', { name: /working/i })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /cancel/i })).toBeInTheDocument();
     expect(screen.getByText(/Waiting for response\.\.\./i)).toBeInTheDocument();
 
     resolveRequest({
@@ -279,6 +279,34 @@ describe('Home', () => {
     await waitFor(() => {
       expect(screen.queryByText(/Waiting for response/i)).not.toBeInTheDocument();
     });
+  });
+
+  it('allows canceling an in-flight non-streaming request', async () => {
+    let abortSignal;
+    sendMessage.mockImplementation(
+      ({ signal }) =>
+        new Promise((_, reject) => {
+          abortSignal = signal;
+          signal.addEventListener('abort', () => {
+            reject(new DOMException('The operation was aborted.', 'AbortError'));
+          });
+        })
+    );
+
+    render(<Home />);
+    const user = userEvent.setup();
+
+    await screen.findByRole('combobox', { name: /model/i });
+    await user.click(screen.getByLabelText(/Streaming/i));
+    await user.type(screen.getByPlaceholderText(/Type your prompt/i), 'Will this hang?');
+    await user.click(screen.getByRole('button', { name: /send/i }));
+
+    expect(screen.getByRole('button', { name: /cancel/i })).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: /cancel/i }));
+
+    expect(abortSignal.aborted).toBe(true);
+    expect(await screen.findByText(/Request canceled\./i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /send/i })).toBeInTheDocument();
   });
 
   it('scrolls the chat window to the latest message', async () => {
@@ -477,6 +505,38 @@ describe('Home', () => {
     expect(screen.queryByText(/provider: bedrock/i)).not.toBeInTheDocument();
     expect(screen.getByText(/awaiting input for tool:/i)).toBeInTheDocument();
     expect(screen.getByText(/missing: reportType/i)).toBeInTheDocument();
+  });
+
+  it('marks a partial streamed reply as canceled when the request is aborted', async () => {
+    streamMessage.mockImplementation(async ({ signal, onEvent }) => {
+      onEvent({
+        type: 'start',
+        sessionId: 'session-123',
+        pendingTool: null,
+        tool: null,
+        toolResult: null,
+        metadata: null
+      });
+      onEvent({ type: 'delta', text: 'Partial answer' });
+      await new Promise((_, reject) => {
+        signal.addEventListener('abort', () => {
+          reject(new DOMException('The operation was aborted.', 'AbortError'));
+        });
+      });
+    });
+
+    render(<Home />);
+    const user = userEvent.setup();
+
+    await screen.findByRole('combobox', { name: /model/i });
+    await user.type(screen.getByPlaceholderText(/Type your prompt/i), 'Stream something slow');
+    await user.click(screen.getByRole('button', { name: /send/i }));
+
+    expect(await screen.findByText('Partial answer')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: /cancel/i }));
+
+    expect(await screen.findByText(/\[Response canceled\.\]/i)).toBeInTheDocument();
+    expect(await screen.findByText(/Request canceled\./i)).toBeInTheDocument();
   });
 
   it('renders mixed-provider assistant turns when reopening a saved session', async () => {

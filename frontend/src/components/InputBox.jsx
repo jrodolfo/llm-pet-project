@@ -2,6 +2,7 @@ import { useState } from 'react';
 
 function InputBox({
   disabled,
+  loading = false,
   loadingMessage = '',
   statusMessage = '',
   providers = [],
@@ -10,11 +11,13 @@ function InputBox({
   models = [],
   selectedModel = '',
   onModelChange,
-  onSend
+  onSend,
+  onCancel
 }) {
   const [message, setMessage] = useState('');
   const [streaming, setStreaming] = useState(true);
-  const sendDisabled = disabled || !selectedModel;
+  const controlsDisabled = disabled || loading;
+  const sendDisabled = controlsDisabled || !selectedModel;
 
   const submit = (event) => {
     event.preventDefault();
@@ -34,7 +37,7 @@ function InputBox({
           aria-label="Chat provider"
           value={selectedProvider}
           onChange={(event) => onProviderChange(event.target.value)}
-          disabled={disabled}
+          disabled={controlsDisabled}
         >
           {providers.map((option) => (
             <option key={option} value={option}>
@@ -75,12 +78,18 @@ function InputBox({
           rows={3}
           disabled={sendDisabled}
         />
-        <button type="submit" disabled={sendDisabled || !message.trim()}>
-          {disabled ? 'Working...' : 'Send'}
-        </button>
+        {loading ? (
+          <button type="button" onClick={onCancel}>
+            Cancel
+          </button>
+        ) : (
+          <button type="submit" disabled={sendDisabled || !message.trim()}>
+            Send
+          </button>
+        )}
       </div>
-      {disabled && loadingMessage ? <p className="input-status">{loadingMessage}</p> : null}
-      {!disabled && statusMessage ? <p className="input-status">{statusMessage}</p> : null}
+      {loading && loadingMessage ? <p className="input-status">{loadingMessage}</p> : null}
+      {!loading && statusMessage ? <p className="input-status">{statusMessage}</p> : null}
     </form>
   );
 }

@@ -12,6 +12,7 @@ const DEBUG_MODE_STORAGE_KEY = 'local-genai-lab.debug-mode';
 function Home() {
   const importInputRef = useRef(null);
   const chatWindowRef = useRef(null);
+  const activeRequestControllerRef = useRef(null);
   const [messages, setMessages] = useState([]);
   const [sessionId, setSessionId] = useState(null);
   const [pendingTool, setPendingTool] = useState(null);
@@ -35,6 +36,7 @@ function Home() {
   const [artifactFiles, setArtifactFiles] = useState([]);
   const [artifactPreview, setArtifactPreview] = useState(null);
   const [artifactPanelTitle, setArtifactPanelTitle] = useState('');
+  const [statusNotice, setStatusNotice] = useState('');
   const [showTechnicalDetails, setShowTechnicalDetails] = useState(() => {
     if (typeof window === 'undefined') {
       return false;
@@ -121,6 +123,30 @@ function Home() {
         };
       })
     );
+  };
+
+  const finalizeCanceledAssistant = () => {
+    setMessages((current) => {
+      if (current.length === 0) {
+        return current;
+      }
+      const lastMessage = current[current.length - 1];
+      if (lastMessage.role !== 'assistant') {
+        return current;
+      }
+      const content = lastMessage.content || '';
+      if (!content.trim()) {
+        return current.slice(0, -1);
+      }
+      if (content.includes('[Response canceled.]')) {
+        return current;
+      }
+      return current.map((message, index) => (
+        index === current.length - 1
+          ? { ...message, content: `${content}\n\n[Response canceled.]` }
+          : message
+      ));
+    });
   };
 
   const applyUiWaitToLastAssistant = (uiWaitMs) => {
@@ -338,9 +364,23 @@ function Home() {
     await loadAvailableModels(provider);
   };
 
+  const resetLoadingState = () => {
+    setLoading(false);
+    setLoadingMessage('');
+    setLoadingStartedAt(null);
+    activeRequestControllerRef.current = null;
+  };
+
+  const handleCancelRequest = () => {
+    activeRequestControllerRef.current?.abort();
+  };
+
   const handleSend = async ({ message, provider, model, streaming }) => {
     const requestStartedAt = Date.now();
+    const requestController = new AbortController();
+    activeRequestControllerRef.current = requestController;
     setError('');
+    setStatusNotice('');
     setLoading(true);
     setLoadingMessage(streaming ? 'Waiting for streamed response...' : 'Waiting for response...');
     setLoadingStartedAt(Date.now());
@@ -348,7 +388,7 @@ function Home() {
 
     try {
       if (!streaming) {
-        const payload = await sendMessage({ message, provider, model, sessionId });
+        const payload = await sendMessage({ message, provider, model, sessionId, signal: requestController.signal });
         setSessionId((current) => payload.sessionId || current);
         setPendingTool(payload.pendingTool || null);
         addMessage(
@@ -372,6 +412,7 @@ function Home() {
           provider,
           model,
           sessionId,
+          signal: requestController.signal,
           onEvent: (event) => {
             if (event.type === 'start' || event.type === 'complete') {
               setSessionId((current) => event?.sessionId || current);
@@ -398,12 +439,17 @@ function Home() {
         applyUiWaitToLastAssistant(Date.now() - requestStartedAt);
       }
     } catch (err) {
+      if (err?.name === 'AbortError') {
+        if (streaming) {
+          finalizeCanceledAssistant();
+        }
+        setStatusNotice('Request canceled.');
+        return;
+      }
       setError(err.message || 'Something went wrong.');
       addMessage('assistant', 'Error calling backend/Ollama. Check backend logs.');
     } finally {
-      setLoading(false);
-      setLoadingMessage('');
-      setLoadingStartedAt(null);
+      resetLoadingState();
     }
   };
 
@@ -624,14 +670,17 @@ function Home() {
         />
 
         <InputBox
-          disabled={loading || modelsLoading}
+          disabled={modelsLoading}
+          loading={loading}
           loadingMessage={loading ? loadingStatusMessage : modelsLoading ? 'Loading available models...' : ''}
           statusMessage={
+            statusNotice || (
             !modelsLoading && !modelsLoadFailed && availableModels.length === 0
               ? selectedProvider === 'ollama'
                 ? 'No Ollama models are installed locally. Run ollama pull llama3:8b and refresh.'
                 : 'No models are configured for the active provider.'
               : ''
+            )
           }
           providers={availableProviders}
           selectedProvider={selectedProvider}
@@ -640,6 +689,7 @@ function Home() {
           selectedModel={selectedModel}
           onModelChange={setSelectedModel}
           onSend={handleSend}
+          onCancel={handleCancelRequest}
         />
 
         <footer className="app-footer">
