@@ -33,9 +33,6 @@ class ToolDecisionServiceEvaluationTest {
             });
         }
 
-        int fallbackCount = 0;
-        int clarificationCount = 0;
-        int toolUseCount = 0;
         List<String> matchedCases = new ArrayList<>();
 
         for (EvaluationFixture fixture : fixtures) {
@@ -69,24 +66,10 @@ class ToolDecisionServiceEvaluationTest {
                 assertEquals(fixture.expectedServices(), trace.finalDecision().services(), fixture.name());
             }
 
-            if (trace.fallbackUsed()) {
-                fallbackCount++;
-            }
-            if (trace.finalDecision().needsClarification()) {
-                clarificationCount++;
-            }
-            if (trace.finalDecision().shouldUseTool()) {
-                toolUseCount++;
-            }
             matchedCases.add(fixture.name() + " -> " + trace.finalDecision().type());
         }
 
         assertFalse(matchedCases.isEmpty());
-        System.out.println("planner evaluation summary: total=" + fixtures.size()
-                + ", tool_use=" + toolUseCount
-                + ", clarification=" + clarificationCount
-                + ", fallback=" + fallbackCount);
-        matchedCases.forEach(caseName -> System.out.println("planner evaluation case: " + caseName));
     }
 
     private PendingToolCall toPendingToolCall(PendingToolFixture pendingToolFixture) {
