@@ -17,6 +17,27 @@ This project combines a React frontend, a Spring Boot orchestration backend, loc
 
 ![Local GenAI Lab UI](./docs/images/local-genai-lab.webp)
 
+## Fastest Path
+
+If you want the shortest path to a running local setup:
+
+```bash
+cp .env.example .env
+cd scripts && ./run-backend.sh
+cd ../frontend && npm install && npm run dev
+```
+
+Then open:
+
+- frontend: `http://localhost:5173`
+- backend health: `http://localhost:8080/actuator/health`
+
+Notes:
+
+- By default, the backend starts with `APP_MODEL_PROVIDER=ollama`.
+- If you want Bedrock or Hugging Face available in the provider selector, add their config to `.env` first.
+- For the default Ollama path, make sure `llama3:8b` is installed locally.
+
 ## Why This Matters
 
 Most LLM demos stop at chat. This project explores how to connect models to real systems.
@@ -154,7 +175,7 @@ Frontend URL:
 
 The frontend provider and model selectors now load from the backend's `/api/models` endpoint. You can switch between supported providers at runtime without restarting the backend. For Ollama, the UI only offers locally installed models. If no local models are installed, the UI shows a clear pull hint instead of failing only after submit.
 
-### 4. Optional: build the local MCP server
+### 5. Optional: build the local MCP server
 
 ```bash
 cd mcp
