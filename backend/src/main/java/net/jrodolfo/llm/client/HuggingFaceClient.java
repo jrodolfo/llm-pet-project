@@ -12,6 +12,7 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
@@ -24,6 +25,8 @@ public class HuggingFaceClient {
     private final ObjectMapper objectMapper;
     private final HuggingFaceProperties huggingFaceProperties;
     private final HttpClient httpClient;
+    private volatile List<String> cachedUsableModels = List.of();
+    private volatile long cachedUsableModelsAtMillis = 0L;
 
     public HuggingFaceClient(ObjectMapper objectMapper, HuggingFaceProperties huggingFaceProperties) {
         this(
@@ -89,6 +92,65 @@ public class HuggingFaceClient {
             throw new ModelProviderException("Hugging Face request was interrupted.", ex);
         } catch (IOException ex) {
             throw new ModelProviderException("Hugging Face request failed.", ex);
+        }
+    }
+
+    /**
+     * Returns the subset of configured candidate models that are currently usable through the
+     * configured hosted chat endpoint. The result is cached briefly so the UI can refresh provider
+     * state without triggering repeated probe requests.
+     */
+    public List<String> discoverUsableModels(List<String> candidateModels) {
+        List<String> normalizedCandidates = candidateModels == null ? List.of() : candidateModels.stream()
+                .filter(model -> model != null && !model.isBlank())
+                .map(String::trim)
+                .distinct()
+                .toList();
+        if (normalizedCandidates.isEmpty()) {
+            return List.of();
+        }
+
+        long now = System.currentTimeMillis();
+        if (now - cachedUsableModelsAtMillis < 30_000L && cachedUsableModels.containsAll(normalizedCandidates)) {
+            return cachedUsableModels.stream()
+                    .filter(normalizedCandidates::contains)
+                    .toList();
+        }
+
+        List<String> usableModels = new ArrayList<>();
+        for (String model : normalizedCandidates) {
+            if (isModelUsable(model)) {
+                usableModels.add(model);
+            }
+        }
+        List<String> immutableUsableModels = List.copyOf(usableModels);
+        cachedUsableModels = immutableUsableModels;
+        cachedUsableModelsAtMillis = now;
+        return immutableUsableModels;
+    }
+
+    private boolean isModelUsable(String model) {
+        try {
+            String requestBody = objectMapper.writeValueAsString(Map.of(
+                    "model", model,
+                    "messages", List.of(Map.of("role", "user", "content", "Reply with OK.")),
+                    "max_tokens", 1,
+                    "stream", false
+            ));
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create(huggingFaceProperties.baseUrl()))
+                    .timeout(Duration.ofSeconds(Math.max(1, huggingFaceProperties.readTimeoutSeconds())))
+                    .header("Authorization", "Bearer " + huggingFaceProperties.apiToken().trim())
+                    .header("Content-Type", "application/json")
+                    .POST(HttpRequest.BodyPublishers.ofString(requestBody))
+                    .build();
+            HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+            return response.statusCode() >= 200 && response.statusCode() < 300;
+        } catch (InterruptedException ex) {
+            Thread.currentThread().interrupt();
+            throw new ModelDiscoveryException("Hugging Face model discovery was interrupted.", ex);
+        } catch (IOException | IllegalArgumentException ex) {
+            throw new ModelDiscoveryException("Hugging Face model discovery failed.", ex);
         }
     }
 

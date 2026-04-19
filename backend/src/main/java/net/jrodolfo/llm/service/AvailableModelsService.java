@@ -1,6 +1,7 @@
 package net.jrodolfo.llm.service;
 
 import net.jrodolfo.llm.client.BedrockCatalogClient;
+import net.jrodolfo.llm.client.HuggingFaceClient;
 import net.jrodolfo.llm.client.ModelDiscoveryException;
 import net.jrodolfo.llm.client.OllamaClient;
 import net.jrodolfo.llm.config.AppModelProperties;
@@ -31,6 +32,7 @@ public class AvailableModelsService {
     private final HuggingFaceProperties huggingFaceProperties;
     private final OllamaClient ollamaClient;
     private final BedrockCatalogClient bedrockCatalogClient;
+    private final HuggingFaceClient huggingFaceClient;
 
     public AvailableModelsService(
             ChatModelProviderRegistry chatModelProviderRegistry,
@@ -38,7 +40,8 @@ public class AvailableModelsService {
             BedrockProperties bedrockProperties,
             HuggingFaceProperties huggingFaceProperties,
             OllamaClient ollamaClient,
-            @Nullable BedrockCatalogClient bedrockCatalogClient
+            @Nullable BedrockCatalogClient bedrockCatalogClient,
+            @Nullable HuggingFaceClient huggingFaceClient
     ) {
         this.chatModelProviderRegistry = chatModelProviderRegistry;
         this.ollamaProperties = ollamaProperties;
@@ -46,6 +49,7 @@ public class AvailableModelsService {
         this.huggingFaceProperties = huggingFaceProperties;
         this.ollamaClient = ollamaClient;
         this.bedrockCatalogClient = bedrockCatalogClient;
+        this.huggingFaceClient = huggingFaceClient;
     }
 
     public AvailableModelsResponse getAvailableModels(String provider) {
@@ -129,7 +133,11 @@ public class AvailableModelsService {
         if (configuredModelId != null) {
             models.add(configuredModelId);
         }
-        return List.copyOf(new ArrayList<>(models));
+        List<String> configuredCandidates = List.copyOf(new ArrayList<>(models));
+        if (configuredCandidates.isEmpty() || huggingFaceClient == null) {
+            return configuredCandidates;
+        }
+        return huggingFaceClient.discoverUsableModels(configuredCandidates);
     }
 
     private String resolveDefaultHuggingFaceModel(List<String> models) {

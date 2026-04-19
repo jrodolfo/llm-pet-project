@@ -90,7 +90,7 @@ class ModelControllerTest {
 
     private static final class FakeAvailableModelsService extends AvailableModelsService {
         private FakeAvailableModelsService() {
-            super(null, null, null, null, null, null);
+            super(null, null, null, null, null, null, null);
         }
 
         @Override
@@ -101,7 +101,7 @@ class ModelControllerTest {
 
     private static final class FakeProviderStatusService extends net.jrodolfo.llm.service.ProviderStatusService {
         private FakeProviderStatusService() {
-            super(null, null, null, null, null, () -> true);
+            super(null, null, null, null, null, null, () -> true);
         }
 
         @Override
@@ -112,7 +112,7 @@ class ModelControllerTest {
 
     private static final class ErrorAvailableModelsService extends AvailableModelsService {
         private ErrorAvailableModelsService() {
-            super(null, null, null, null, null, null);
+            super(null, null, null, null, null, null, null);
         }
 
         @Override
@@ -123,7 +123,7 @@ class ModelControllerTest {
 
     private static final class BedrockErrorAvailableModelsService extends AvailableModelsService {
         private BedrockErrorAvailableModelsService() {
-            super(null, null, null, null, null, null);
+            super(null, null, null, null, null, null, null);
         }
 
         @Override
@@ -134,7 +134,7 @@ class ModelControllerTest {
 
     private static final class InvalidProviderAvailableModelsService extends AvailableModelsService {
         private InvalidProviderAvailableModelsService() {
-            super(null, null, null, null, null, null);
+            super(null, null, null, null, null, null, null);
         }
 
         @Override

@@ -1,5 +1,7 @@
 package net.jrodolfo.llm.service;
 
+import net.jrodolfo.llm.client.HuggingFaceClient;
+import net.jrodolfo.llm.client.ModelDiscoveryException;
 import net.jrodolfo.llm.client.OllamaClient;
 import net.jrodolfo.llm.client.OllamaClientException;
 import net.jrodolfo.llm.config.AppModelProperties;
@@ -13,6 +15,7 @@ import org.springframework.stereotype.Service;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
 
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.function.Supplier;
 
@@ -28,6 +31,7 @@ public class ProviderStatusService {
     private final BedrockProperties bedrockProperties;
     private final HuggingFaceProperties huggingFaceProperties;
     private final OllamaClient ollamaClient;
+    private final HuggingFaceClient huggingFaceClient;
     private final Supplier<Boolean> bedrockCredentialsResolver;
 
     @Autowired
@@ -36,7 +40,8 @@ public class ProviderStatusService {
             OllamaProperties ollamaProperties,
             BedrockProperties bedrockProperties,
             HuggingFaceProperties huggingFaceProperties,
-            OllamaClient ollamaClient
+            OllamaClient ollamaClient,
+            @org.springframework.lang.Nullable HuggingFaceClient huggingFaceClient
     ) {
         this(
                 chatModelProviderRegistry,
@@ -44,6 +49,7 @@ public class ProviderStatusService {
                 bedrockProperties,
                 huggingFaceProperties,
                 ollamaClient,
+                huggingFaceClient,
                 () -> {
                     AwsCredentialsProvider provider = DefaultCredentialsProvider.create();
                     provider.resolveCredentials();
@@ -58,6 +64,7 @@ public class ProviderStatusService {
             BedrockProperties bedrockProperties,
             HuggingFaceProperties huggingFaceProperties,
             OllamaClient ollamaClient,
+            HuggingFaceClient huggingFaceClient,
             Supplier<Boolean> bedrockCredentialsResolver
     ) {
         this.chatModelProviderRegistry = chatModelProviderRegistry;
@@ -65,6 +72,7 @@ public class ProviderStatusService {
         this.bedrockProperties = bedrockProperties;
         this.huggingFaceProperties = huggingFaceProperties;
         this.ollamaClient = ollamaClient;
+        this.huggingFaceClient = huggingFaceClient;
         this.bedrockCredentialsResolver = bedrockCredentialsResolver;
     }
 
@@ -142,7 +150,43 @@ public class ProviderStatusService {
                     "Hugging Face needs an API token, base URL, and default model before requests can succeed."
             );
         }
-        return new ProviderStatusResponse("huggingface", "ready", "Hugging Face is configured and ready.");
+        if (huggingFaceClient == null) {
+            return new ProviderStatusResponse(
+                    "huggingface",
+                    "misconfigured",
+                    "Hugging Face is selected, but the backend client is not enabled."
+            );
+        }
+
+        LinkedHashSet<String> configuredCandidates = new LinkedHashSet<>();
+        if (huggingFaceProperties.models() != null) {
+            for (String model : huggingFaceProperties.models()) {
+                String normalized = normalize(model);
+                if (normalized != null) {
+                    configuredCandidates.add(normalized);
+                }
+            }
+        }
+        String defaultModel = normalize(huggingFaceProperties.defaultModel());
+        if (defaultModel != null) {
+            configuredCandidates.add(defaultModel);
+        }
+        try {
+            if (!huggingFaceClient.discoverUsableModels(List.copyOf(configuredCandidates)).isEmpty()) {
+                return new ProviderStatusResponse("huggingface", "ready", "Hugging Face is configured and ready.");
+            }
+        } catch (ModelDiscoveryException ex) {
+            return new ProviderStatusResponse(
+                    "huggingface",
+                    "unreachable",
+                    "Hugging Face model discovery failed. Check the token, base URL, network access, or provider availability."
+            );
+        }
+        return new ProviderStatusResponse(
+                "huggingface",
+                "model_missing",
+                "No configured Hugging Face models are currently usable. Check the token, model ids, or provider access."
+        );
     }
 
     private String normalize(String value) {

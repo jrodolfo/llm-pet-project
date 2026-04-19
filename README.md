@@ -194,7 +194,7 @@ Provider switching details and helper startup scripts live in [docs/providers.md
 - normal and streaming chat endpoints
 - Ollama as the default provider
 - Amazon Bedrock as an optional provider
-- Hugging Face as an optional hosted provider with a curated backend-side model list
+- Hugging Face as an optional hosted provider with a configured candidate list that the backend validates dynamically
 - provider metadata in responses and saved session history
 - typed JSON SSE events for streaming chat
 - provider-aware model discovery for the frontend selector

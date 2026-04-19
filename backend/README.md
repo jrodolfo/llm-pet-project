@@ -92,7 +92,7 @@ Those scripts set the backend default provider. The chat API can still override 
 - if `provider` is omitted, the backend returns models for the configured default provider
 - `ollama`: returns installed local models from Ollama plus the configured default model
 - `bedrock`: returns discovered Bedrock inference profiles when available and falls back to the configured model id if discovery fails
-- `huggingface`: returns the curated configured model list plus the configured default model
+- `huggingface`: validates the configured candidate list and returns only the models that are currently usable, with the default falling back to the first usable model when needed
 
 When a tool call succeeds, the backend still sends the enriched prompt to the selected model. It does not bypass the model or replace the final wording with a deterministic backend template by default. That means different models can still produce noticeably different final answers even when they receive the same grounded tool context.
 

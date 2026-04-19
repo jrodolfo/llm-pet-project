@@ -73,8 +73,9 @@ echo "${HUGGINGFACE_API_TOKEN:-}"
 
 Fix:
 - set `HUGGINGFACE_API_TOKEN` before starting the backend
-- confirm `HUGGINGFACE_DEFAULT_MODEL` is one of the curated backend-side models
-- if needed, override `HUGGINGFACE_MODELS` so the UI exposes the models you actually want to use
+- confirm `HUGGINGFACE_DEFAULT_MODEL` is one of the configured candidate models
+- if needed, override `HUGGINGFACE_MODELS` so the backend can validate the models you actually want to use
+- if the UI shows no usable Hugging Face models, verify that the configured model ids are valid for your account and token
 
 ## AWS Credentials or Access Problems
 

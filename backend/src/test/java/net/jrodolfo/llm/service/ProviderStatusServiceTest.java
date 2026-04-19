@@ -1,6 +1,7 @@
 package net.jrodolfo.llm.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import net.jrodolfo.llm.client.HuggingFaceClient;
 import net.jrodolfo.llm.client.OllamaClient;
 import net.jrodolfo.llm.client.OllamaClientException;
 import net.jrodolfo.llm.config.AppModelProperties;
@@ -26,6 +27,7 @@ class ProviderStatusServiceTest {
                 new BedrockProperties("us-east-1", "amazon.nova-lite-v1:0"),
                 new HuggingFaceProperties("https://router.huggingface.co/v1/chat/completions", "token", "meta-llama/Llama-3.1-8B-Instruct", List.of("meta-llama/Llama-3.1-8B-Instruct"), 10, 60),
                 new FakeOllamaClient(List.of("llama3:8b")),
+                new FakeHuggingFaceClient(List.of("meta-llama/Llama-3.1-8B-Instruct")),
                 () -> true
         );
 
@@ -42,6 +44,7 @@ class ProviderStatusServiceTest {
                 new BedrockProperties("us-east-1", "amazon.nova-lite-v1:0"),
                 new HuggingFaceProperties("https://router.huggingface.co/v1/chat/completions", "token", "meta-llama/Llama-3.1-8B-Instruct", List.of("meta-llama/Llama-3.1-8B-Instruct"), 10, 60),
                 new FailingOllamaClient(),
+                new FakeHuggingFaceClient(List.of("meta-llama/Llama-3.1-8B-Instruct")),
                 () -> true
         );
 
@@ -58,6 +61,7 @@ class ProviderStatusServiceTest {
                 new BedrockProperties("us-east-1", "amazon.nova-lite-v1:0"),
                 new HuggingFaceProperties("https://router.huggingface.co/v1/chat/completions", "token", "meta-llama/Llama-3.1-8B-Instruct", List.of("meta-llama/Llama-3.1-8B-Instruct"), 10, 60),
                 new FakeOllamaClient(List.of("llama3:8b")),
+                new FakeHuggingFaceClient(List.of("meta-llama/Llama-3.1-8B-Instruct")),
                 () -> {
                     throw new IllegalStateException("missing creds");
                 }
@@ -76,12 +80,47 @@ class ProviderStatusServiceTest {
                 new BedrockProperties("us-east-1", "amazon.nova-lite-v1:0"),
                 new HuggingFaceProperties("https://router.huggingface.co/v1/chat/completions", "", "meta-llama/Llama-3.1-8B-Instruct", List.of("meta-llama/Llama-3.1-8B-Instruct"), 10, 60),
                 new FakeOllamaClient(List.of("llama3:8b")),
+                new FakeHuggingFaceClient(List.of("meta-llama/Llama-3.1-8B-Instruct")),
                 () -> true
         );
 
         ProviderStatusResponse response = service.getProviderStatus("huggingface");
 
         assertEquals("misconfigured", response.status());
+    }
+
+    @Test
+    void huggingFaceStatusReportsModelMissingWhenNoConfiguredModelsAreUsable() {
+        ProviderStatusService service = new ProviderStatusService(
+                registry("huggingface"),
+                new OllamaProperties("http://localhost:11434", "llama3:8b", 10, 60),
+                new BedrockProperties("us-east-1", "amazon.nova-lite-v1:0"),
+                new HuggingFaceProperties("https://router.huggingface.co/v1/chat/completions", "token", "meta-llama/Llama-3.1-8B-Instruct", List.of("meta-llama/Llama-3.1-8B-Instruct"), 10, 60),
+                new FakeOllamaClient(List.of("llama3:8b")),
+                new FakeHuggingFaceClient(List.of()),
+                () -> true
+        );
+
+        ProviderStatusResponse response = service.getProviderStatus("huggingface");
+
+        assertEquals("model_missing", response.status());
+    }
+
+    @Test
+    void huggingFaceStatusReportsUnreachableWhenDiscoveryFails() {
+        ProviderStatusService service = new ProviderStatusService(
+                registry("huggingface"),
+                new OllamaProperties("http://localhost:11434", "llama3:8b", 10, 60),
+                new BedrockProperties("us-east-1", "amazon.nova-lite-v1:0"),
+                new HuggingFaceProperties("https://router.huggingface.co/v1/chat/completions", "token", "meta-llama/Llama-3.1-8B-Instruct", List.of("meta-llama/Llama-3.1-8B-Instruct"), 10, 60),
+                new FakeOllamaClient(List.of("llama3:8b")),
+                new FailingHuggingFaceClient(),
+                () -> true
+        );
+
+        ProviderStatusResponse response = service.getProviderStatus("huggingface");
+
+        assertEquals("unreachable", response.status());
     }
 
     private ChatModelProviderRegistry registry(String defaultProvider) {
@@ -134,6 +173,45 @@ class ProviderStatusServiceTest {
         @Override
         public List<String> listModels() {
             throw new OllamaClientException("unreachable");
+        }
+    }
+
+    private static final class FakeHuggingFaceClient extends HuggingFaceClient {
+        private final List<String> usableModels;
+
+        private FakeHuggingFaceClient(List<String> usableModels) {
+            super(new ObjectMapper(), new HuggingFaceProperties(
+                    "https://router.huggingface.co/v1/chat/completions",
+                    "token",
+                    "meta-llama/Llama-3.1-8B-Instruct",
+                    usableModels,
+                    10,
+                    60
+            ));
+            this.usableModels = usableModels;
+        }
+
+        @Override
+        public List<String> discoverUsableModels(List<String> candidateModels) {
+            return candidateModels.stream().filter(usableModels::contains).toList();
+        }
+    }
+
+    private static final class FailingHuggingFaceClient extends HuggingFaceClient {
+        private FailingHuggingFaceClient() {
+            super(new ObjectMapper(), new HuggingFaceProperties(
+                    "https://router.huggingface.co/v1/chat/completions",
+                    "token",
+                    "meta-llama/Llama-3.1-8B-Instruct",
+                    List.of("meta-llama/Llama-3.1-8B-Instruct"),
+                    10,
+                    60
+            ));
+        }
+
+        @Override
+        public List<String> discoverUsableModels(List<String> candidateModels) {
+            throw new net.jrodolfo.llm.client.ModelDiscoveryException("down");
         }
     }
 }
