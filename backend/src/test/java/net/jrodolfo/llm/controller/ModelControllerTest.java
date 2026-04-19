@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import net.jrodolfo.llm.client.ModelDiscoveryException;
 import net.jrodolfo.llm.client.OllamaClientException;
 import net.jrodolfo.llm.dto.AvailableModelsResponse;
+import net.jrodolfo.llm.dto.ProviderStatusResponse;
 import net.jrodolfo.llm.service.AvailableModelsService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -24,7 +25,7 @@ class ModelControllerTest {
     @BeforeEach
     void setUp() {
         mockMvc = MockMvcBuilders
-                .standaloneSetup(new ModelController(new FakeAvailableModelsService()))
+                .standaloneSetup(new ModelController(new FakeAvailableModelsService(), new FakeProviderStatusService()))
                 .setMessageConverters(new MappingJackson2HttpMessageConverter(new ObjectMapper()))
                 .build();
     }
@@ -45,7 +46,7 @@ class ModelControllerTest {
     @Test
     void ollamaDiscoveryErrorsMapToBadGateway() throws Exception {
         mockMvc = MockMvcBuilders
-                .standaloneSetup(new ModelController(new ErrorAvailableModelsService()))
+                .standaloneSetup(new ModelController(new ErrorAvailableModelsService(), new FakeProviderStatusService()))
                 .setMessageConverters(new MappingJackson2HttpMessageConverter(new ObjectMapper()))
                 .build();
 
@@ -57,7 +58,7 @@ class ModelControllerTest {
     @Test
     void invalidProviderMapsToBadRequest() throws Exception {
         mockMvc = MockMvcBuilders
-                .standaloneSetup(new ModelController(new InvalidProviderAvailableModelsService()))
+                .standaloneSetup(new ModelController(new InvalidProviderAvailableModelsService(), new FakeProviderStatusService()))
                 .setMessageConverters(new MappingJackson2HttpMessageConverter(new ObjectMapper()))
                 .build();
 
@@ -69,7 +70,7 @@ class ModelControllerTest {
     @Test
     void bedrockDiscoveryErrorsMapToBadGateway() throws Exception {
         mockMvc = MockMvcBuilders
-                .standaloneSetup(new ModelController(new BedrockErrorAvailableModelsService()))
+                .standaloneSetup(new ModelController(new BedrockErrorAvailableModelsService(), new FakeProviderStatusService()))
                 .setMessageConverters(new MappingJackson2HttpMessageConverter(new ObjectMapper()))
                 .build();
 
@@ -78,7 +79,16 @@ class ModelControllerTest {
                 .andExpect(jsonPath("$.error").value("bedrock unavailable"));
     }
 
-        private static final class FakeAvailableModelsService extends AvailableModelsService {
+    @Test
+    void providerStatusReturnsCompactStatusPayload() throws Exception {
+        mockMvc.perform(get("/api/models/status").param("provider", "bedrock"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.provider").value("bedrock"))
+                .andExpect(jsonPath("$.status").value("misconfigured"))
+                .andExpect(jsonPath("$.message").value("Bedrock needs a region, model, and valid AWS credentials before requests can succeed."));
+    }
+
+    private static final class FakeAvailableModelsService extends AvailableModelsService {
         private FakeAvailableModelsService() {
             super(null, null, null, null, null, null);
         }
@@ -86,6 +96,17 @@ class ModelControllerTest {
         @Override
         public AvailableModelsResponse getAvailableModels(String provider) {
             return new AvailableModelsResponse("ollama", "ollama", List.of("bedrock", "ollama"), "llama3:8b", List.of("llama3:8b", "mistral:7b"));
+        }
+    }
+
+    private static final class FakeProviderStatusService extends net.jrodolfo.llm.service.ProviderStatusService {
+        private FakeProviderStatusService() {
+            super(null, null, null, null, null, () -> true);
+        }
+
+        @Override
+        public ProviderStatusResponse getProviderStatus(String provider) {
+            return new ProviderStatusResponse("bedrock", "misconfigured", "Bedrock needs a region, model, and valid AWS credentials before requests can succeed.");
         }
     }
 

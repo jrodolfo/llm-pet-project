@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { listArtifacts, previewArtifact } from '../api/artifactApi';
 import { sendMessage, streamMessage } from '../api/chatApi';
-import { listAvailableModels } from '../api/modelApi';
+import { getProviderStatus, listAvailableModels } from '../api/modelApi';
 import { deleteSession, exportSession, getSession, importSession, listSessions } from '../api/sessionApi';
 import ChatWindow from '../components/ChatWindow';
 import InputBox from '../components/InputBox';
@@ -30,6 +30,7 @@ function Home() {
   const [selectedProvider, setSelectedProvider] = useState('');
   const [availableModels, setAvailableModels] = useState([]);
   const [selectedModel, setSelectedModel] = useState('');
+  const [providerStatus, setProviderStatus] = useState(null);
   const [modelsLoading, setModelsLoading] = useState(true);
   const [modelsLoadFailed, setModelsLoadFailed] = useState(false);
   const [error, setError] = useState('');
@@ -81,6 +82,14 @@ function Home() {
   useEffect(() => {
     loadAvailableModels();
   }, []);
+
+  useEffect(() => {
+    if (!selectedProvider) {
+      setProviderStatus(null);
+      return;
+    }
+    loadProviderStatus(selectedProvider);
+  }, [selectedProvider]);
 
   useEffect(() => {
     const chatWindow = chatWindowRef.current;
@@ -217,6 +226,19 @@ function Home() {
       setSelectedModel('');
     } finally {
       setModelsLoading(false);
+    }
+  }
+
+  async function loadProviderStatus(provider) {
+    try {
+      const payload = await getProviderStatus(provider);
+      setProviderStatus(payload);
+    } catch (err) {
+      setProviderStatus({
+        provider: provider || selectedProvider,
+        status: 'unknown',
+        message: err.message || 'Failed to load provider status.'
+      });
     }
   }
 
@@ -600,6 +622,13 @@ function Home() {
 
         {error ? <div className="error-banner">{error}</div> : null}
 
+        {providerStatus ? (
+          <div className={`provider-status-banner provider-status-${providerStatus.status}`}>
+            <strong>{`${formatProviderName(providerStatus.provider)} status: ${formatProviderStatus(providerStatus.status)}`}</strong>
+            <span>{providerStatus.message}</span>
+          </div>
+        ) : null}
+
         {pendingTool ? (
           <div className="pending-tool-banner">
             <strong>awaiting input for tool:</strong> {pendingTool.toolName}
@@ -745,6 +774,13 @@ function formatProviderName(provider) {
     return 'Hugging Face';
   }
   return provider;
+}
+
+function formatProviderStatus(status) {
+  if (!status) {
+    return 'Unknown';
+  }
+  return status.replaceAll('_', ' ');
 }
 
 export default Home;

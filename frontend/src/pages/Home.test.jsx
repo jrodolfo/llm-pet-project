@@ -8,7 +8,8 @@ vi.mock('../api/chatApi', () => ({
 }));
 
 vi.mock('../api/modelApi', () => ({
-  listAvailableModels: vi.fn()
+  listAvailableModels: vi.fn(),
+  getProviderStatus: vi.fn()
 }));
 
 vi.mock('../api/artifactApi', () => ({
@@ -25,7 +26,7 @@ vi.mock('../api/sessionApi', () => ({
 }));
 
 import { sendMessage, streamMessage } from '../api/chatApi';
-import { listAvailableModels } from '../api/modelApi';
+import { getProviderStatus, listAvailableModels } from '../api/modelApi';
 import { listArtifacts, previewArtifact } from '../api/artifactApi';
 import { deleteSession, exportSession, getSession, importSession, listSessions } from '../api/sessionApi';
 
@@ -56,6 +57,11 @@ describe('Home', () => {
       providers: ['bedrock', 'ollama'],
       defaultModel: 'llama3:8b',
       models: ['llama3:8b', 'mistral:7b', 'codellama:70b']
+    });
+    getProviderStatus.mockResolvedValue({
+      provider: 'ollama',
+      status: 'ready',
+      message: 'Ollama is reachable and ready.'
     });
     exportSession.mockResolvedValue({
       blob: new Blob(['{"sessionId":"session-1"}'], { type: 'application/json' }),
@@ -191,11 +197,17 @@ describe('Home', () => {
       defaultModel: 'us.amazon.nova-pro-v1:0',
       models: ['us.amazon.nova-pro-v1:0', 'us.amazon.nova-lite-v1:0']
     });
+    getProviderStatus.mockResolvedValue({
+      provider: 'bedrock',
+      status: 'misconfigured',
+      message: 'Bedrock needs a region, model, and valid AWS credentials before requests can succeed.'
+    });
 
     render(<Home />);
 
     expect(await screen.findByRole('combobox', { name: /model/i })).toHaveValue('us.amazon.nova-pro-v1:0');
     expect(screen.getByText(/provider: Bedrock/i)).toBeInTheDocument();
+    expect(screen.getByText(/Bedrock status: misconfigured/i)).toBeInTheDocument();
   });
 
   it('switches provider and reloads provider-specific models', async () => {
@@ -214,6 +226,17 @@ describe('Home', () => {
         defaultModel: 'us.amazon.nova-pro-v1:0',
         models: ['us.amazon.nova-pro-v1:0', 'us.amazon.nova-lite-v1:0']
       });
+    getProviderStatus
+      .mockResolvedValueOnce({
+        provider: 'ollama',
+        status: 'ready',
+        message: 'Ollama is reachable and ready.'
+      })
+      .mockResolvedValueOnce({
+        provider: 'bedrock',
+        status: 'misconfigured',
+        message: 'Bedrock needs a region, model, and valid AWS credentials before requests can succeed.'
+      });
 
     render(<Home />);
     const user = userEvent.setup();
@@ -225,6 +248,7 @@ describe('Home', () => {
       expect(screen.getByRole('combobox', { name: /model/i })).toHaveValue('us.amazon.nova-pro-v1:0');
     });
     expect(screen.getByText(/provider: Bedrock/i)).toBeInTheDocument();
+    expect(screen.getByText(/Bedrock status: misconfigured/i)).toBeInTheDocument();
   });
 
   it('shows the sessions sidebar by default and toggles it on demand', async () => {

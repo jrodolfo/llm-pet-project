@@ -21,3 +21,17 @@ export async function listAvailableModels(provider) {
   }
   return response.json();
 }
+
+export async function getProviderStatus(provider) {
+  const params = new URLSearchParams();
+  if (provider) {
+    params.set('provider', provider);
+  }
+  const url = params.size > 0 ? `/api/models/status?${params.toString()}` : '/api/models/status';
+  const response = await fetch(url);
+  if (!response.ok) {
+    const payload = await parseJson(response);
+    throw new Error(payload.error || 'Failed to load provider status.');
+  }
+  return response.json();
+}

@@ -6,8 +6,10 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import net.jrodolfo.llm.client.ModelDiscoveryException;
 import net.jrodolfo.llm.client.OllamaClientException;
 import net.jrodolfo.llm.dto.AvailableModelsResponse;
+import net.jrodolfo.llm.dto.ProviderStatusResponse;
 import net.jrodolfo.llm.service.AvailableModelsService;
 import net.jrodolfo.llm.service.InvalidProviderException;
+import net.jrodolfo.llm.service.ProviderStatusService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -28,9 +30,11 @@ public class ModelController {
     private static final Logger log = LoggerFactory.getLogger(ModelController.class);
 
     private final AvailableModelsService availableModelsService;
+    private final ProviderStatusService providerStatusService;
 
-    public ModelController(AvailableModelsService availableModelsService) {
+    public ModelController(AvailableModelsService availableModelsService, ProviderStatusService providerStatusService) {
         this.availableModelsService = availableModelsService;
+        this.providerStatusService = providerStatusService;
     }
 
     @GetMapping
@@ -40,6 +44,15 @@ public class ModelController {
             @RequestParam(required = false) String provider
     ) {
         return availableModelsService.getAvailableModels(provider);
+    }
+
+    @GetMapping("/status")
+    @Operation(summary = "Get provider status", description = "Returns a compact readiness and troubleshooting summary for the selected provider.")
+    public ProviderStatusResponse getProviderStatus(
+            @Parameter(description = "Optional provider override. Falls back to the configured backend default when omitted.")
+            @RequestParam(required = false) String provider
+    ) {
+        return providerStatusService.getProviderStatus(provider);
     }
 
     @ExceptionHandler(OllamaClientException.class)
