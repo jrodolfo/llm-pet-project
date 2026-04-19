@@ -27,8 +27,7 @@ class ProviderStatusServiceTest {
                 new BedrockProperties("us-east-1", "amazon.nova-lite-v1:0"),
                 new HuggingFaceProperties("https://router.huggingface.co/v1/chat/completions", "token", "meta-llama/Llama-3.1-8B-Instruct", List.of("meta-llama/Llama-3.1-8B-Instruct"), 10, 60),
                 new FakeOllamaClient(List.of("llama3:8b")),
-                new FakeHuggingFaceClient(List.of("meta-llama/Llama-3.1-8B-Instruct")),
-                () -> true
+                new FakeHuggingFaceClient(List.of("meta-llama/Llama-3.1-8B-Instruct"))
         );
 
         ProviderStatusResponse response = service.getProviderStatus("ollama");
@@ -44,8 +43,7 @@ class ProviderStatusServiceTest {
                 new BedrockProperties("us-east-1", "amazon.nova-lite-v1:0"),
                 new HuggingFaceProperties("https://router.huggingface.co/v1/chat/completions", "token", "meta-llama/Llama-3.1-8B-Instruct", List.of("meta-llama/Llama-3.1-8B-Instruct"), 10, 60),
                 new FailingOllamaClient(),
-                new FakeHuggingFaceClient(List.of("meta-llama/Llama-3.1-8B-Instruct")),
-                () -> true
+                new FakeHuggingFaceClient(List.of("meta-llama/Llama-3.1-8B-Instruct"))
         );
 
         ProviderStatusResponse response = service.getProviderStatus("ollama");
@@ -61,10 +59,7 @@ class ProviderStatusServiceTest {
                 new BedrockProperties("us-east-1", "amazon.nova-lite-v1:0"),
                 new HuggingFaceProperties("https://router.huggingface.co/v1/chat/completions", "token", "meta-llama/Llama-3.1-8B-Instruct", List.of("meta-llama/Llama-3.1-8B-Instruct"), 10, 60),
                 new FakeOllamaClient(List.of("llama3:8b")),
-                new FakeHuggingFaceClient(List.of("meta-llama/Llama-3.1-8B-Instruct")),
-                () -> {
-                    throw new IllegalStateException("missing creds");
-                }
+                new FakeHuggingFaceClient(List.of("meta-llama/Llama-3.1-8B-Instruct"))
         );
 
         ProviderStatusResponse response = service.getProviderStatus("bedrock");
@@ -80,8 +75,7 @@ class ProviderStatusServiceTest {
                 new BedrockProperties("us-east-1", "amazon.nova-lite-v1:0"),
                 new HuggingFaceProperties("https://router.huggingface.co/v1/chat/completions", "", "meta-llama/Llama-3.1-8B-Instruct", List.of("meta-llama/Llama-3.1-8B-Instruct"), 10, 60),
                 new FakeOllamaClient(List.of("llama3:8b")),
-                new FakeHuggingFaceClient(List.of("meta-llama/Llama-3.1-8B-Instruct")),
-                () -> true
+                new FakeHuggingFaceClient(List.of("meta-llama/Llama-3.1-8B-Instruct"))
         );
 
         ProviderStatusResponse response = service.getProviderStatus("huggingface");
@@ -97,8 +91,7 @@ class ProviderStatusServiceTest {
                 new BedrockProperties("us-east-1", "amazon.nova-lite-v1:0"),
                 new HuggingFaceProperties("https://router.huggingface.co/v1/chat/completions", "token", "meta-llama/Llama-3.1-8B-Instruct", List.of("meta-llama/Llama-3.1-8B-Instruct"), 10, 60),
                 new FakeOllamaClient(List.of("llama3:8b")),
-                new FakeHuggingFaceClient(List.of()),
-                () -> true
+                new FakeHuggingFaceClient(List.of())
         );
 
         ProviderStatusResponse response = service.getProviderStatus("huggingface");
@@ -117,8 +110,7 @@ class ProviderStatusServiceTest {
                 new BedrockProperties("us-east-1", "amazon.nova-lite-v1:0"),
                 new HuggingFaceProperties("https://router.huggingface.co/v1/chat/completions", "token", "meta-llama/Llama-3.1-8B-Instruct", List.of("meta-llama/Llama-3.1-8B-Instruct"), 10, 60),
                 new FakeOllamaClient(List.of("llama3:8b")),
-                new FailingHuggingFaceClient(),
-                () -> true
+                new FailingHuggingFaceClient()
         );
 
         ProviderStatusResponse response = service.getProviderStatus("huggingface");

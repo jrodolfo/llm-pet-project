@@ -23,6 +23,7 @@ React UI
     -> Chat orchestration
       -> Ollama
       -> Amazon Bedrock
+      -> Hugging Face
       -> MCP server
         -> Shell scripts
           -> AWS CLI
@@ -77,10 +78,11 @@ This is the architectural center of the codebase.
 
 ### Provider Layer
 
-The provider layer supports two backends:
+The provider layer currently supports three backends:
 
 - Ollama
 - Amazon Bedrock
+- Hugging Face
 
 Provider selection is runtime-selectable per request. The backend maintains a provider registry rather than a single startup-only provider.
 
@@ -88,6 +90,7 @@ Important distinction:
 
 - Ollama plain chat uses role-based chat messages
 - Bedrock now preserves structured system, user, and assistant messages when that context is available
+- Hugging Face starts from a configured candidate list and validates the usable subset through its hosted chat endpoint
 
 ### MCP Server
 
@@ -228,6 +231,12 @@ The frontend can switch between providers without restarting the backend. The ba
 
 - Ollama reachable when Ollama is selected
 - valid AWS/Bedrock configuration when Bedrock is selected
+- valid Hugging Face token/base URL/default model when Hugging Face is selected
+
+Important selector rule:
+
+- the UI only shows providers configured in the running backend process
+- helper scripts can auto-load a repo-local `.env` so one backend process can expose multiple providers cleanly
 
 ## Tool Orchestration Architecture
 

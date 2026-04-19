@@ -18,10 +18,18 @@ import java.util.LinkedHashSet;
 import java.util.List;
 
 /**
- * Resolves model options that the frontend can safely present for the active provider.
+ * Resolves provider/model options that the frontend can safely present in the current backend
+ * process.
  *
- * <p>Ollama returns installed local models. Bedrock prefers discovered inference profiles but
- * falls back to the configured model id so the UI remains usable when discovery fails.
+ * <p>The returned provider list is intentionally narrower than the provider registry:
+ * only providers with enough configuration to be usable in this running process are surfaced to
+ * the selector. Model discovery is then provider-specific:
+ *
+ * <ul>
+ *   <li>Ollama returns installed local models.</li>
+ *   <li>Bedrock prefers discovered inference profiles but falls back to the configured model id.</li>
+ *   <li>Hugging Face starts from configured candidates and validates the usable subset.</li>
+ * </ul>
  */
 @Service
 public class AvailableModelsService {
@@ -55,6 +63,8 @@ public class AvailableModelsService {
     public AvailableModelsResponse getAvailableModels(String provider) {
         String resolvedProvider = chatModelProviderRegistry.resolveProviderName(provider);
         chatModelProviderRegistry.get(resolvedProvider);
+        // The selector should only advertise providers that are configured in this backend process,
+        // even if additional provider beans exist in the codebase.
         List<String> availableProviders = resolveAvailableProviders();
         if ("bedrock".equals(resolvedProvider)) {
             List<String> models = resolveBedrockModels();

@@ -15,7 +15,7 @@ mvn test
 
 Covers:
 - chat orchestration and tool-routing regressions
-- Ollama and Bedrock provider behavior
+- Ollama, Bedrock, and Hugging Face provider behavior
 - session persistence, filtering, export/import, and mixed-provider metadata
 - artifact preview and path-safety behavior
 - controller error handling and health/model APIs
@@ -99,19 +99,22 @@ These flows are still worth running manually after meaningful changes:
 2. Plain chat with Bedrock
    Verify multi-turn context and model switching without restarting the backend.
 
-3. Streaming chat
+3. Plain chat with Hugging Face
+   Verify configured candidate validation, status-banner details, and normal hosted chat replies.
+
+4. Streaming chat
    Verify partial tokens appear before completion and metadata/provenance settle correctly at the end.
 
-4. Tool-assisted chat
+5. Tool-assisted chat
    Verify prompts such as `Please audit my AWS account.` or S3 metrics requests execute the MCP-backed tools and render tool results correctly.
 
-5. Provider switching in one session
-   Verify Ollama and Bedrock can both answer in the same saved session and that the UI shows per-turn provider/model provenance.
+6. Provider switching in one session
+   Verify the configured providers in the current backend process can all answer in the same saved session and that the UI shows per-turn provider/model provenance.
 
-6. Session reopen and export/import
+7. Session reopen and export/import
    Verify saved sessions reopen correctly and JSON/Markdown export still reflect the stored provider/model metadata.
 
-7. Artifact preview
+8. Artifact preview
    Verify report summary and report preview actions open the expected artifacts without loading the entire file into memory.
 
 ## Known Non-Automated Areas
@@ -120,6 +123,7 @@ The following still depend primarily on manual or environment-specific validatio
 
 - real Ollama runtime behavior with installed local models
 - real Bedrock credentials, regional access, and inference-profile availability
+- real Hugging Face token, hosted model access, and candidate validation behavior
 - shell-script execution against a live AWS account
 - model-specific answer quality differences after tool grounding
 - end-to-end startup behavior when local services are down or partially configured

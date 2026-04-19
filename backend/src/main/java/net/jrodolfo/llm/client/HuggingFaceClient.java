@@ -19,12 +19,18 @@ import java.util.concurrent.TimeUnit;
 
 /**
  * Minimal client for Hugging Face's hosted chat-completions endpoint.
+ *
+ * <p>This client handles both normal chat requests and the lightweight candidate-model probes used
+ * by the frontend model selector. The probe result is cached briefly so the UI can refresh the
+ * usable subset without turning every selector refresh into a full round of remote validation.
  */
 public class HuggingFaceClient {
 
     private final ObjectMapper objectMapper;
     private final HuggingFaceProperties huggingFaceProperties;
     private final HttpClient httpClient;
+    // Cache the last validated usable subset for a short period so provider status and model
+    // discovery can share the same result without repeatedly probing the hosted endpoint.
     private volatile List<String> cachedUsableModels = List.of();
     private volatile long cachedUsableModelsAtMillis = 0L;
 

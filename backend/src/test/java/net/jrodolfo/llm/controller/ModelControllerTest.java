@@ -84,8 +84,8 @@ class ModelControllerTest {
         mockMvc.perform(get("/api/models/status").param("provider", "bedrock"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.provider").value("bedrock"))
-                .andExpect(jsonPath("$.status").value("misconfigured"))
-                .andExpect(jsonPath("$.message").value("Bedrock needs a region, model, and valid AWS credentials before requests can succeed."));
+                .andExpect(jsonPath("$.status").value("ready"))
+                .andExpect(jsonPath("$.message").value("Bedrock is configured and ready."));
     }
 
     private static final class FakeAvailableModelsService extends AvailableModelsService {
@@ -101,12 +101,12 @@ class ModelControllerTest {
 
     private static final class FakeProviderStatusService extends net.jrodolfo.llm.service.ProviderStatusService {
         private FakeProviderStatusService() {
-            super(null, null, null, null, null, null, () -> true);
+            super(null, null, null, null, null, null);
         }
 
         @Override
         public ProviderStatusResponse getProviderStatus(String provider) {
-            return new ProviderStatusResponse("bedrock", "misconfigured", "Bedrock needs a region, model, and valid AWS credentials before requests can succeed.");
+            return new ProviderStatusResponse("bedrock", "ready", "Bedrock is configured and ready.");
         }
     }
 

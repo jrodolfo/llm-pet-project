@@ -12,8 +12,8 @@ export async function listAvailableModels(provider) {
     params.set('provider', provider);
   }
   const url = params.size > 0 ? `/api/models?${params.toString()}` : '/api/models';
-  // The selector is provider-aware: Ollama returns installed local models and Bedrock returns
-  // discovered inference profiles or the configured fallback model id.
+  // The selector is provider-aware and backend-driven. The backend also filters the provider list
+  // so the UI only offers providers configured in the current backend process.
   const response = await fetch(url);
   if (!response.ok) {
     const payload = await parseJson(response);

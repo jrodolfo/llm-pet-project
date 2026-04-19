@@ -6,7 +6,8 @@
 #   BEDROCK_MODEL_ID=us.amazon.nova-pro-v1:0
 #   MCP_ENABLED=false
 # AWS credentials are resolved by the standard AWS SDK chain used by the backend.
-# If a repo-local .env file exists, it is loaded for unset variables only.
+# If a repo-local .env file exists, it is loaded for unset variables only so explicit shell
+# overrides still win.
 
 set -euo pipefail
 

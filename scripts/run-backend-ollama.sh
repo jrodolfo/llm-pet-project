@@ -4,7 +4,8 @@
 # Override behavior with environment variables such as:
 #   MCP_ENABLED=false
 # The script keeps provider switching simple for daily local use.
-# If a repo-local .env file exists, it is loaded for unset variables only.
+# If a repo-local .env file exists, it is loaded for unset variables only so explicit shell
+# overrides still win.
 
 set -euo pipefail
 

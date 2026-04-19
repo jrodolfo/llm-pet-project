@@ -49,4 +49,6 @@ It uses:
 - technical details such as timings, stop reasons, and token counts are hidden by default and can be enabled from the UI
 - if no Ollama models are installed locally, the composer shows a pull hint and disables sending
 - provider switching is runtime-driven by the backend `/api/models` response rather than a frontend-only toggle
+- the provider selector only shows providers configured in the running backend process
+- the provider status banner explains readiness, rejected Hugging Face candidates, and common provider-specific issues
 - streamed replies can enrich the final assistant message with provider metadata when the backend emits completion metadata

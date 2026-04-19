@@ -10,18 +10,18 @@ import net.jrodolfo.llm.config.HuggingFaceProperties;
 import net.jrodolfo.llm.config.OllamaProperties;
 import net.jrodolfo.llm.dto.ProviderStatusResponse;
 import net.jrodolfo.llm.provider.ChatModelProviderRegistry;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
-import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
 
 import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.function.Supplier;
 
 /**
- * Provides a small, UI-friendly provider troubleshooting summary without exposing full actuator
- * health details in the chat interface.
+ * Provides a compact provider-level troubleshooting summary for the chat UI.
+ *
+ * <p>This service intentionally separates selector availability from deeper runtime health:
+ * the provider dropdown should only include providers configured in the current backend process,
+ * while this summary explains whether the selected provider is reachable, missing models, or
+ * still misconfigured in ways that are useful to surface near the composer.
  */
 @Service
 public class ProviderStatusService {
@@ -32,9 +32,7 @@ public class ProviderStatusService {
     private final HuggingFaceProperties huggingFaceProperties;
     private final OllamaClient ollamaClient;
     private final HuggingFaceClient huggingFaceClient;
-    private final Supplier<Boolean> bedrockCredentialsResolver;
 
-    @Autowired
     public ProviderStatusService(
             ChatModelProviderRegistry chatModelProviderRegistry,
             OllamaProperties ollamaProperties,
@@ -43,37 +41,12 @@ public class ProviderStatusService {
             OllamaClient ollamaClient,
             @org.springframework.lang.Nullable HuggingFaceClient huggingFaceClient
     ) {
-        this(
-                chatModelProviderRegistry,
-                ollamaProperties,
-                bedrockProperties,
-                huggingFaceProperties,
-                ollamaClient,
-                huggingFaceClient,
-                () -> {
-                    AwsCredentialsProvider provider = DefaultCredentialsProvider.create();
-                    provider.resolveCredentials();
-                    return true;
-                }
-        );
-    }
-
-    public ProviderStatusService(
-            ChatModelProviderRegistry chatModelProviderRegistry,
-            OllamaProperties ollamaProperties,
-            BedrockProperties bedrockProperties,
-            HuggingFaceProperties huggingFaceProperties,
-            OllamaClient ollamaClient,
-            HuggingFaceClient huggingFaceClient,
-            Supplier<Boolean> bedrockCredentialsResolver
-    ) {
         this.chatModelProviderRegistry = chatModelProviderRegistry;
         this.ollamaProperties = ollamaProperties;
         this.bedrockProperties = bedrockProperties;
         this.huggingFaceProperties = huggingFaceProperties;
         this.ollamaClient = ollamaClient;
         this.huggingFaceClient = huggingFaceClient;
-        this.bedrockCredentialsResolver = bedrockCredentialsResolver;
     }
 
     public ProviderStatusResponse getProviderStatus(String provider) {

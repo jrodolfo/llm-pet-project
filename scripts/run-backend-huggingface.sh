@@ -1,12 +1,13 @@
 #!/usr/bin/env bash
-# Starts the Spring Boot backend in Hugging Face mode with curated hosted-model defaults.
+# Starts the Spring Boot backend in Hugging Face mode with configured hosted-model defaults.
 #
 # Override behavior with environment variables such as:
 #   HUGGINGFACE_API_TOKEN=hf_xxx
 #   HUGGINGFACE_DEFAULT_MODEL=meta-llama/Llama-3.1-8B-Instruct
 #   HUGGINGFACE_MODELS=meta-llama/Llama-3.1-8B-Instruct,Qwen/Qwen2.5-72B-Instruct
 #   MCP_ENABLED=false
-# If a repo-local .env file exists, it is loaded for unset variables only.
+# If a repo-local .env file exists, it is loaded for unset variables only so explicit shell
+# overrides still win.
 
 set -euo pipefail
 
