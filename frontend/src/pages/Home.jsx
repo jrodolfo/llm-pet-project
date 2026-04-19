@@ -8,6 +8,7 @@ import InputBox from '../components/InputBox';
 import './Home.css';
 
 const DEBUG_MODE_STORAGE_KEY = 'local-genai-lab.debug-mode';
+const SLOW_PROVIDER_HINT_THRESHOLD_SECONDS = 10;
 
 function Home() {
   const importInputRef = useRef(null);
@@ -478,6 +479,9 @@ function Home() {
   const loadingStatusMessage = loadingMessage
     ? `${loadingMessage} ${formatElapsedTime(loadingElapsedSeconds)}`
     : '';
+  const slowProviderHint = loading && loadingElapsedSeconds >= SLOW_PROVIDER_HINT_THRESHOLD_SECONDS
+    ? 'This provider is taking longer than usual.'
+    : '';
 
   return (
     <main className="home-page">
@@ -713,6 +717,7 @@ function Home() {
           disabled={modelsLoading}
           loading={loading}
           loadingMessage={loading ? loadingStatusMessage : modelsLoading ? 'Loading available models...' : ''}
+          loadingHint={slowProviderHint}
           statusMessage={
             statusNotice || (
             !modelsLoading && !modelsLoadFailed && availableModels.length === 0

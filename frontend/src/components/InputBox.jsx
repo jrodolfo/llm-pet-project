@@ -4,6 +4,7 @@ function InputBox({
   disabled,
   loading = false,
   loadingMessage = '',
+  loadingHint = '',
   statusMessage = '',
   providers = [],
   selectedProvider = '',
@@ -89,6 +90,7 @@ function InputBox({
         )}
       </div>
       {loading && loadingMessage ? <p className="input-status">{loadingMessage}</p> : null}
+      {loading && loadingHint ? <p className="input-status">{loadingHint}</p> : null}
       {!loading && statusMessage ? <p className="input-status">{statusMessage}</p> : null}
     </form>
   );

@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import Home from './Home';
 
@@ -337,6 +337,50 @@ describe('Home', () => {
     await waitFor(() => {
       expect(screen.queryByText(/Waiting for response/i)).not.toBeInTheDocument();
     });
+  });
+
+  it('shows a slow-provider hint after a long in-flight request', async () => {
+    let unmount = () => {};
+    try {
+      streamMessage.mockImplementation(
+        ({ signal }) =>
+          new Promise((_, reject) => {
+            signal.addEventListener('abort', () => {
+              reject(new DOMException('The operation was aborted.', 'AbortError'));
+            });
+          })
+      );
+
+      ({ unmount } = render(<Home />));
+
+      await screen.findByRole('combobox', { name: /model/i });
+
+      vi.useFakeTimers();
+      fireEvent.change(screen.getByPlaceholderText(/Type your prompt/i), {
+        target: { value: 'run something slow' }
+      });
+      fireEvent.click(screen.getByRole('button', { name: /send/i }));
+      expect(screen.getByRole('button', { name: /cancel/i })).toBeInTheDocument();
+
+      expect(screen.queryByText(/This provider is taking longer than usual\./i)).not.toBeInTheDocument();
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(10_000);
+      });
+
+      expect(screen.getByText(/This provider is taking longer than usual\./i)).toBeInTheDocument();
+
+      vi.useRealTimers();
+      fireEvent.click(screen.getByRole('button', { name: /cancel/i }));
+      await waitFor(() => {
+        expect(screen.queryByText(/This provider is taking longer than usual\./i)).not.toBeInTheDocument();
+      });
+      expect(screen.getByText(/Request canceled\./i)).toBeInTheDocument();
+    } finally {
+      unmount();
+      vi.clearAllTimers();
+      vi.useRealTimers();
+    }
   });
 
   it('allows canceling an in-flight non-streaming request', async () => {
