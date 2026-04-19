@@ -58,6 +58,24 @@ Fix:
 
 See [providers.md](./providers.md) for the Bedrock startup flow.
 
+## Hugging Face Token or Model Problems
+
+Symptoms:
+- Hugging Face is missing from the provider selector
+- startup in Hugging Face mode fails immediately
+- Hugging Face requests fail with auth or model errors
+
+Check:
+
+```bash
+echo "${HUGGINGFACE_API_TOKEN:-}"
+```
+
+Fix:
+- set `HUGGINGFACE_API_TOKEN` before starting the backend
+- confirm `HUGGINGFACE_DEFAULT_MODEL` is one of the curated backend-side models
+- if needed, override `HUGGINGFACE_MODELS` so the UI exposes the models you actually want to use
+
 ## AWS Credentials or Access Problems
 
 Symptoms:

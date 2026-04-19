@@ -17,19 +17,22 @@ public class ActuatorInfoContributor implements InfoContributor {
     private final McpProperties mcpProperties;
     private final OllamaProperties ollamaProperties;
     private final BedrockProperties bedrockProperties;
+    private final HuggingFaceProperties huggingFaceProperties;
 
     public ActuatorInfoContributor(Environment environment,
                                    AppModelProperties appModelProperties,
                                    AppStorageProperties appStorageProperties,
                                    McpProperties mcpProperties,
                                    OllamaProperties ollamaProperties,
-                                   BedrockProperties bedrockProperties) {
+                                   BedrockProperties bedrockProperties,
+                                   HuggingFaceProperties huggingFaceProperties) {
         this.environment = environment;
         this.appModelProperties = appModelProperties;
         this.appStorageProperties = appStorageProperties;
         this.mcpProperties = mcpProperties;
         this.ollamaProperties = ollamaProperties;
         this.bedrockProperties = bedrockProperties;
+        this.huggingFaceProperties = huggingFaceProperties;
     }
 
     @Override
@@ -61,6 +64,9 @@ public class ActuatorInfoContributor implements InfoContributor {
         if ("bedrock".equalsIgnoreCase(appModelProperties.provider())) {
             details.put("modelId", bedrockProperties.modelId());
             details.put("region", bedrockProperties.region());
+        } else if ("huggingface".equalsIgnoreCase(appModelProperties.provider())) {
+            details.put("modelId", huggingFaceProperties.defaultModel());
+            details.put("baseUrl", huggingFaceProperties.baseUrl());
         } else {
             details.put("modelId", ollamaProperties.defaultModel());
             details.put("baseUrl", ollamaProperties.baseUrl());

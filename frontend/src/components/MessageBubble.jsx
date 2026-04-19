@@ -110,6 +110,9 @@ function formatProviderName(provider) {
   if (normalized === 'bedrock') {
     return 'Bedrock';
   }
+  if (normalized === 'huggingface') {
+    return 'Hugging Face';
+  }
   return provider;
 }
 

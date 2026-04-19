@@ -14,6 +14,7 @@ Supported providers:
 
 - `ollama`: default local provider
 - `bedrock`: optional AWS-managed provider
+- `huggingface`: optional hosted provider with a curated backend-side model list
 
 ## Ollama
 
@@ -81,6 +82,38 @@ cd scripts
 BEDROCK_REGION=us-east-1 BEDROCK_MODEL_ID=amazon.nova-lite-v1:0 ./run-backend-bedrock.sh
 ```
 
+## Hugging Face
+
+Preferred hosted Hugging Face workflow:
+
+```bash
+cd scripts
+HUGGINGFACE_API_TOKEN=hf_xxx ./run-backend-huggingface.sh
+```
+
+Defaults:
+
+- provider: `huggingface`
+- base URL: `https://router.huggingface.co/v1/chat/completions`
+- default model: `meta-llama/Llama-3.1-8B-Instruct`
+- curated model list: defaults to the configured default model unless overridden
+- `MCP_ENABLED=true`
+
+Requirements:
+
+- a valid Hugging Face API token available to the backend process
+- a configured default model that you want the backend to offer in the UI
+
+Override the curated model list when needed:
+
+```bash
+cd scripts
+HUGGINGFACE_API_TOKEN=hf_xxx \
+HUGGINGFACE_DEFAULT_MODEL=Qwen/Qwen2.5-72B-Instruct \
+HUGGINGFACE_MODELS=Qwen/Qwen2.5-72B-Instruct,meta-llama/Llama-3.1-8B-Instruct \
+./run-backend-huggingface.sh
+```
+
 ## Verification
 
 After the backend starts, verify the default provider:
@@ -101,4 +134,5 @@ cd scripts
 - the frontend provider selector can switch between supported providers at runtime without restarting the backend
 - for `ollama`, the UI only offers models installed locally
 - for `bedrock`, the backend tries to list available inference profiles in the configured region and falls back to the configured model id if discovery is unavailable
+- for `huggingface`, the backend exposes a curated configured model list instead of browsing the full Hugging Face catalog at runtime
 - successful MCP/tool execution still enriches prompts before the backend calls the active provider

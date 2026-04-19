@@ -78,9 +78,9 @@ class ModelControllerTest {
                 .andExpect(jsonPath("$.error").value("bedrock unavailable"));
     }
 
-    private static final class FakeAvailableModelsService extends AvailableModelsService {
+        private static final class FakeAvailableModelsService extends AvailableModelsService {
         private FakeAvailableModelsService() {
-            super(null, null, null, null, null);
+            super(null, null, null, null, null, null);
         }
 
         @Override
@@ -91,7 +91,7 @@ class ModelControllerTest {
 
     private static final class ErrorAvailableModelsService extends AvailableModelsService {
         private ErrorAvailableModelsService() {
-            super(null, null, null, null, null);
+            super(null, null, null, null, null, null);
         }
 
         @Override
@@ -102,7 +102,7 @@ class ModelControllerTest {
 
     private static final class BedrockErrorAvailableModelsService extends AvailableModelsService {
         private BedrockErrorAvailableModelsService() {
-            super(null, null, null, null, null);
+            super(null, null, null, null, null, null);
         }
 
         @Override
@@ -113,7 +113,7 @@ class ModelControllerTest {
 
     private static final class InvalidProviderAvailableModelsService extends AvailableModelsService {
         private InvalidProviderAvailableModelsService() {
-            super(null, null, null, null, null);
+            super(null, null, null, null, null, null);
         }
 
         @Override

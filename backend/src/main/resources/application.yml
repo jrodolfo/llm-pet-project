@@ -39,6 +39,14 @@ bedrock:
   region: ${BEDROCK_REGION:us-east-1}
   model-id: ${BEDROCK_MODEL_ID:}
 
+huggingface:
+  base-url: ${HUGGINGFACE_BASE_URL:https://router.huggingface.co/v1/chat/completions}
+  api-token: ${HUGGINGFACE_API_TOKEN:}
+  default-model: ${HUGGINGFACE_DEFAULT_MODEL:}
+  models: ${HUGGINGFACE_MODELS:}
+  connect-timeout-seconds: ${HUGGINGFACE_CONNECT_TIMEOUT_SECONDS:10}
+  read-timeout-seconds: ${HUGGINGFACE_READ_TIMEOUT_SECONDS:120}
+
 mcp:
   enabled: ${MCP_ENABLED:true}
   command: ${MCP_COMMAND:node}

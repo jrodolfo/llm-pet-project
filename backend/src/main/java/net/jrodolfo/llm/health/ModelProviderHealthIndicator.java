@@ -2,6 +2,7 @@ package net.jrodolfo.llm.health;
 
 import net.jrodolfo.llm.config.AppModelProperties;
 import net.jrodolfo.llm.config.BedrockProperties;
+import net.jrodolfo.llm.config.HuggingFaceProperties;
 import net.jrodolfo.llm.config.OllamaProperties;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -30,6 +31,7 @@ public class ModelProviderHealthIndicator implements HealthIndicator {
     private final AppModelProperties appModelProperties;
     private final OllamaProperties ollamaProperties;
     private final BedrockProperties bedrockProperties;
+    private final HuggingFaceProperties huggingFaceProperties;
     private final HttpClient httpClient;
     private final ObjectMapper objectMapper;
     private final Supplier<Boolean> bedrockCredentialsResolver;
@@ -39,12 +41,14 @@ public class ModelProviderHealthIndicator implements HealthIndicator {
             AppModelProperties appModelProperties,
             OllamaProperties ollamaProperties,
             BedrockProperties bedrockProperties,
+            HuggingFaceProperties huggingFaceProperties,
             ObjectProvider<ObjectMapper> objectMapperProvider
     ) {
         this(
                 appModelProperties,
                 ollamaProperties,
                 bedrockProperties,
+                huggingFaceProperties,
                 HttpClient.newBuilder()
                         .connectTimeout(Duration.ofSeconds(Math.max(1, ollamaProperties.connectTimeoutSeconds())))
                         .build(),
@@ -61,6 +65,7 @@ public class ModelProviderHealthIndicator implements HealthIndicator {
             AppModelProperties appModelProperties,
             OllamaProperties ollamaProperties,
             BedrockProperties bedrockProperties,
+            HuggingFaceProperties huggingFaceProperties,
             HttpClient httpClient,
             ObjectMapper objectMapper,
             Supplier<Boolean> bedrockCredentialsResolver
@@ -68,6 +73,7 @@ public class ModelProviderHealthIndicator implements HealthIndicator {
         this.appModelProperties = appModelProperties;
         this.ollamaProperties = ollamaProperties;
         this.bedrockProperties = bedrockProperties;
+        this.huggingFaceProperties = huggingFaceProperties;
         this.httpClient = httpClient;
         this.objectMapper = objectMapper;
         this.bedrockCredentialsResolver = bedrockCredentialsResolver;
@@ -78,6 +84,7 @@ public class ModelProviderHealthIndicator implements HealthIndicator {
         String provider = normalizeProvider(appModelProperties.provider());
         return switch (provider) {
             case "bedrock" -> bedrockHealth();
+            case "huggingface" -> huggingFaceHealth();
             case "ollama" -> ollamaHealth();
             default -> Health.down()
                     .withDetail("provider", provider)
@@ -183,6 +190,30 @@ public class ModelProviderHealthIndicator implements HealthIndicator {
                     .withDetail("error", ex.getMessage())
                     .build();
         }
+    }
+
+    private Health huggingFaceHealth() {
+        boolean tokenConfigured = huggingFaceProperties.apiToken() != null && !huggingFaceProperties.apiToken().isBlank();
+        boolean baseUrlConfigured = huggingFaceProperties.baseUrl() != null && !huggingFaceProperties.baseUrl().isBlank();
+        boolean modelConfigured = huggingFaceProperties.defaultModel() != null && !huggingFaceProperties.defaultModel().isBlank();
+
+        if (!tokenConfigured || !baseUrlConfigured || !modelConfigured) {
+            return Health.down()
+                    .withDetail("provider", "huggingface")
+                    .withDetail("baseUrlConfigured", baseUrlConfigured)
+                    .withDetail("tokenConfigured", tokenConfigured)
+                    .withDetail("modelConfigured", modelConfigured)
+                    .withDetail("status", "misconfigured")
+                    .withDetail("error", "HUGGINGFACE_API_TOKEN, HUGGINGFACE_BASE_URL, and HUGGINGFACE_DEFAULT_MODEL must all be configured.")
+                    .build();
+        }
+
+        return Health.up()
+                .withDetail("provider", "huggingface")
+                .withDetail("status", "ready")
+                .withDetail("baseUrl", huggingFaceProperties.baseUrl())
+                .withDetail("defaultModel", huggingFaceProperties.defaultModel())
+                .build();
     }
 
     private boolean ollamaModelPresent(String responseBody, String defaultModel) {

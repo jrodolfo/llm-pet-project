@@ -7,6 +7,7 @@
 ![react](https://img.shields.io/badge/react-frontend-61dafb)
 ![ollama](https://img.shields.io/badge/ollama-default%20provider-222222)
 ![bedrock](https://img.shields.io/badge/bedrock-optional%20provider-ff9900)
+![huggingface](https://img.shields.io/badge/huggingface-hosted%20provider-fcc624)
 ![mcp](https://img.shields.io/badge/mcp-local%20tools-0a7ea4)
 
 Local-first GenAI lab for building and testing tool-assisted chat workflows.
@@ -23,7 +24,7 @@ Most LLM demos stop at chat. This project explores how to connect models to real
 It focuses on:
 
 - tool-assisted chat with backend-side orchestration instead of direct frontend-to-model calls
-- provider abstraction with Ollama by default and Amazon Bedrock as an optional runtime
+- provider abstraction with Ollama by default plus Amazon Bedrock and Hugging Face as optional runtimes
 - persistent session memory with resume, search, filter, import, and export flows
 - MCP-backed local tool execution for AWS audits, reports, and artifact generation
 - structured report rendering, artifact preview, streaming responses, and API observability
@@ -119,7 +120,7 @@ cd scripts
 ./run-backend-ollama.sh
 ```
 
-If you want Bedrock as the default backend provider instead of Ollama, use `./run-backend-bedrock.sh` and see [docs/providers.md](./docs/providers.md).
+If you want Bedrock or Hugging Face as the default backend provider instead of Ollama, use `./run-backend-bedrock.sh` or `./run-backend-huggingface.sh` and see [docs/providers.md](./docs/providers.md).
 
 Backend URLs:
 
@@ -174,6 +175,9 @@ The most important backend settings are:
 - `OLLAMA_DEFAULT_MODEL` default: `llama3:8b`
 - `BEDROCK_REGION` default: `us-east-1`
 - `BEDROCK_MODEL_ID` default: empty
+- `HUGGINGFACE_BASE_URL` default: `https://router.huggingface.co/v1/chat/completions`
+- `HUGGINGFACE_DEFAULT_MODEL` default: empty
+- `HUGGINGFACE_MODELS` default: empty
 - `MCP_ENABLED` default: `true`
 - `APP_TOOLS_ROUTING_MODE` default: `hybrid`
 - `APP_STORAGE_SESSIONS_DIRECTORY` default: `data/sessions`
@@ -190,6 +194,7 @@ Provider switching details and helper startup scripts live in [docs/providers.md
 - normal and streaming chat endpoints
 - Ollama as the default provider
 - Amazon Bedrock as an optional provider
+- Hugging Face as an optional hosted provider with a curated backend-side model list
 - provider metadata in responses and saved session history
 - typed JSON SSE events for streaming chat
 - provider-aware model discovery for the frontend selector

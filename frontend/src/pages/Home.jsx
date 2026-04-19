@@ -450,8 +450,11 @@ function Home() {
                 onChange={(event) => setProviderFilter(event.target.value)}
               >
                 <option value="">All providers</option>
-                <option value="ollama">Ollama</option>
-                <option value="bedrock">Bedrock</option>
+                {availableProviders.map((provider) => (
+                  <option key={`provider-filter-${provider}`} value={provider}>
+                    {formatProviderName(provider)}
+                  </option>
+                ))}
               </select>
               <select
                 aria-label="Tool usage filter"
@@ -687,6 +690,9 @@ function formatProviderName(provider) {
   }
   if (provider.toLowerCase() === 'bedrock') {
     return 'Bedrock';
+  }
+  if (provider.toLowerCase() === 'huggingface') {
+    return 'Hugging Face';
   }
   return provider;
 }

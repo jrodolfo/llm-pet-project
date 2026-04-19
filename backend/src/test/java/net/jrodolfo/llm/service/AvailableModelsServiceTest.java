@@ -6,6 +6,7 @@ import net.jrodolfo.llm.client.ModelDiscoveryException;
 import net.jrodolfo.llm.client.OllamaClient;
 import net.jrodolfo.llm.config.AppModelProperties;
 import net.jrodolfo.llm.config.BedrockProperties;
+import net.jrodolfo.llm.config.HuggingFaceProperties;
 import net.jrodolfo.llm.config.OllamaProperties;
 import net.jrodolfo.llm.dto.AvailableModelsResponse;
 import net.jrodolfo.llm.provider.ChatModelProviderRegistry;
@@ -27,6 +28,7 @@ class AvailableModelsServiceTest {
                 )),
                 new OllamaProperties("http://localhost:11434", "llama3:8b", 10, 60),
                 new BedrockProperties("us-east-2", "us.amazon.nova-pro-v1:0"),
+                new HuggingFaceProperties("https://router.huggingface.co/v1/chat/completions", "token", "meta-llama/Llama-3.1-8B-Instruct", List.of("meta-llama/Llama-3.1-8B-Instruct"), 10, 60),
                 new FakeOllamaClient(List.of()),
                 () -> List.of("us.amazon.nova-pro-v1:0", "us.amazon.nova-lite-v1:0")
         );
@@ -49,6 +51,7 @@ class AvailableModelsServiceTest {
                 )),
                 new OllamaProperties("http://localhost:11434", "llama3:8b", 10, 60),
                 new BedrockProperties("us-east-2", "us.amazon.nova-pro-v1:0"),
+                new HuggingFaceProperties("https://router.huggingface.co/v1/chat/completions", "token", "meta-llama/Llama-3.1-8B-Instruct", List.of("meta-llama/Llama-3.1-8B-Instruct"), 10, 60),
                 new FakeOllamaClient(List.of()),
                 () -> { throw new ModelDiscoveryException("bedrock unavailable"); }
         );
@@ -69,6 +72,7 @@ class AvailableModelsServiceTest {
                 )),
                 new OllamaProperties("http://localhost:11434", "llama3:8b", 10, 60),
                 new BedrockProperties("us-east-2", null),
+                new HuggingFaceProperties("https://router.huggingface.co/v1/chat/completions", "token", "meta-llama/Llama-3.1-8B-Instruct", List.of("meta-llama/Llama-3.1-8B-Instruct"), 10, 60),
                 new FakeOllamaClient(List.of()),
                 () -> { throw new ModelDiscoveryException("bedrock unavailable"); }
         );
@@ -87,6 +91,7 @@ class AvailableModelsServiceTest {
                 )),
                 new OllamaProperties("http://localhost:11434", "llama3:8b", 10, 60),
                 new BedrockProperties("us-east-2", "us.amazon.nova-pro-v1:0"),
+                new HuggingFaceProperties("https://router.huggingface.co/v1/chat/completions", "token", "meta-llama/Llama-3.1-8B-Instruct", List.of("meta-llama/Llama-3.1-8B-Instruct"), 10, 60),
                 new FakeOllamaClient(List.of("llama3:8b", "mistral:7b")),
                 null
         );
@@ -96,6 +101,35 @@ class AvailableModelsServiceTest {
         assertEquals("ollama", response.provider());
         assertEquals("llama3:8b", response.defaultModel());
         assertEquals(List.of("llama3:8b", "mistral:7b"), response.models());
+    }
+
+    @Test
+    void huggingFaceUsesConfiguredCuratedModels() {
+        AvailableModelsService service = new AvailableModelsService(
+                new ChatModelProviderRegistry(new AppModelProperties("huggingface"), java.util.Map.of(
+                        "ollama", new FakeProvider(),
+                        "huggingface", new FakeProvider()
+                )),
+                new OllamaProperties("http://localhost:11434", "llama3:8b", 10, 60),
+                new BedrockProperties("us-east-2", "us.amazon.nova-pro-v1:0"),
+                new HuggingFaceProperties(
+                        "https://router.huggingface.co/v1/chat/completions",
+                        "token",
+                        "meta-llama/Llama-3.1-8B-Instruct",
+                        List.of("Qwen/Qwen2.5-72B-Instruct", "meta-llama/Llama-3.1-8B-Instruct"),
+                        10,
+                        60
+                ),
+                new FakeOllamaClient(List.of("llama3:8b")),
+                null
+        );
+
+        AvailableModelsResponse response = service.getAvailableModels("huggingface");
+
+        assertEquals("huggingface", response.provider());
+        assertEquals("huggingface", response.defaultProvider());
+        assertEquals("meta-llama/Llama-3.1-8B-Instruct", response.defaultModel());
+        assertEquals(List.of("Qwen/Qwen2.5-72B-Instruct", "meta-llama/Llama-3.1-8B-Instruct"), response.models());
     }
 
     private static final class FakeProvider implements net.jrodolfo.llm.provider.ChatModelProvider {

@@ -9,7 +9,7 @@ BUCKET ?=
 REGION ?=
 DAYS ?=
 
-.PHONY: help reports lint test audit s3-cloudwatch check-app run-backend-ollama run-backend-bedrock
+.PHONY: help reports lint test audit s3-cloudwatch check-app run-backend-ollama run-backend-bedrock run-backend-huggingface
 
 help:
 	@printf '%s\n' \
@@ -22,6 +22,9 @@ help:
 		'  make run-backend-ollama  Start backend with the Ollama provider' \
 		'  make run-backend-bedrock Start backend with Bedrock provider' \
 		'                Optional: BEDROCK_REGION=us-east-2 BEDROCK_MODEL_ID=us.amazon.nova-pro-v1:0' \
+		'  make run-backend-huggingface Start backend with Hugging Face provider' \
+		'                Required: HUGGINGFACE_API_TOKEN=hf_xxx' \
+		'                Optional: HUGGINGFACE_DEFAULT_MODEL=meta-llama/Llama-3.1-8B-Instruct' \
 		'  make audit    Run the AWS regional audit report' \
 		'                Optional: make audit REGIONS="us-east-2"' \
 		'                Optional: make audit SERVICES="sagemaker ec2"' \
@@ -43,6 +46,7 @@ lint:
 	@bash -n ./check-app.sh
 	@bash -n ./run-backend-ollama.sh
 	@bash -n ./run-backend-bedrock.sh
+	@bash -n ./run-backend-huggingface.sh
 
 test:
 	@bash ./tests/test.sh
@@ -56,6 +60,9 @@ run-backend-ollama:
 
 run-backend-bedrock:
 	@./run-backend-bedrock.sh
+
+run-backend-huggingface:
+	@./run-backend-huggingface.sh
 
 audit: reports lint
 	@"$(SCRIPT)" \

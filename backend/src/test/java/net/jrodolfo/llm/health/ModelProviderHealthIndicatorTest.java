@@ -3,6 +3,7 @@ package net.jrodolfo.llm.health;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import net.jrodolfo.llm.config.AppModelProperties;
 import net.jrodolfo.llm.config.BedrockProperties;
+import net.jrodolfo.llm.config.HuggingFaceProperties;
 import net.jrodolfo.llm.config.OllamaProperties;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.actuate.health.Status;
@@ -36,6 +37,7 @@ class ModelProviderHealthIndicatorTest {
                 new AppModelProperties("ollama"),
                 new OllamaProperties("http://localhost:11434", "llama3:8b", 1, 1),
                 new BedrockProperties("us-east-1", "amazon.nova-lite-v1:0"),
+                new HuggingFaceProperties("https://router.huggingface.co/v1/chat/completions", "token", "meta-llama/Llama-3.1-8B-Instruct", java.util.List.of("meta-llama/Llama-3.1-8B-Instruct"), 10, 60),
                 new FakeHttpClient(200, "{\"models\":[{\"name\":\"mistral:7b\"}]}"),
                 new ObjectMapper(),
                 () -> true
@@ -55,6 +57,7 @@ class ModelProviderHealthIndicatorTest {
                 new AppModelProperties("bedrock"),
                 new OllamaProperties("http://localhost:11434", "llama3:8b", 1, 1),
                 new BedrockProperties("us-east-1", "amazon.nova-lite-v1:0"),
+                new HuggingFaceProperties("https://router.huggingface.co/v1/chat/completions", "token", "meta-llama/Llama-3.1-8B-Instruct", java.util.List.of("meta-llama/Llama-3.1-8B-Instruct"), 10, 60),
                 new FakeHttpClient(200, "{\"models\":[]}"),
                 new ObjectMapper(),
                 () -> {
@@ -66,6 +69,25 @@ class ModelProviderHealthIndicatorTest {
 
         assertEquals(Status.DOWN, health.getStatus());
         assertEquals(false, health.getDetails().get("credentialsResolved"));
+    }
+
+    @Test
+    void huggingFaceHealthIsDownWhenTokenIsMissing() {
+        ModelProviderHealthIndicator indicator = new ModelProviderHealthIndicator(
+                new AppModelProperties("huggingface"),
+                new OllamaProperties("http://localhost:11434", "llama3:8b", 1, 1),
+                new BedrockProperties("us-east-1", "amazon.nova-lite-v1:0"),
+                new HuggingFaceProperties("https://router.huggingface.co/v1/chat/completions", "", "meta-llama/Llama-3.1-8B-Instruct", java.util.List.of("meta-llama/Llama-3.1-8B-Instruct"), 10, 60),
+                new FakeHttpClient(200, "{\"models\":[]}"),
+                new ObjectMapper(),
+                () -> true
+        );
+
+        var health = indicator.health();
+
+        assertEquals(Status.DOWN, health.getStatus());
+        assertEquals("misconfigured", health.getDetails().get("status"));
+        assertEquals(false, health.getDetails().get("tokenConfigured"));
     }
 
     private static final class FakeHttpClient extends HttpClient {

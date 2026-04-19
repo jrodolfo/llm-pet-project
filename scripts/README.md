@@ -13,7 +13,7 @@ The directory includes:
 - a focused S3 CloudWatch report generator for one bucket
 - local shell tests
 - a smoke-check script for the local frontend/backend/model-discovery/Ollama stack
-- helper scripts for starting the backend with `ollama` or `bedrock`
+- helper scripts for starting the backend with `ollama`, `bedrock`, or `huggingface`
 
 It is designed for a practical cleanup workflow:
 - compare resources across one or more regions
@@ -71,6 +71,7 @@ Key files:
 - `check-app.sh`: local stack smoke-check script
 - `run-backend-ollama.sh`: start the backend with the Ollama provider
 - `run-backend-bedrock.sh`: start the backend with Bedrock defaults
+- `run-backend-huggingface.sh`: start the backend with Hugging Face defaults
 - `LICENSE`: MIT license for the repository
 - `tests/`: mock-based shell tests
 - `.github/workflows/ci.yml`: GitHub Actions CI workflow
@@ -216,6 +217,19 @@ Bedrock helper defaults:
 
 - `BEDROCK_REGION=us-east-2`
 - `BEDROCK_MODEL_ID=us.amazon.nova-pro-v1:0`
+- `MCP_ENABLED=true`
+
+Start the backend in Hugging Face mode:
+
+```bash
+HUGGINGFACE_API_TOKEN=hf_xxx make run-backend-huggingface
+```
+
+Hugging Face helper defaults:
+
+- `HUGGINGFACE_BASE_URL=https://router.huggingface.co/v1/chat/completions`
+- `HUGGINGFACE_DEFAULT_MODEL=meta-llama/Llama-3.1-8B-Instruct`
+- `HUGGINGFACE_MODELS` defaults to the configured default model
 - `MCP_ENABLED=true`
 
 For Nova Pro, use the inference profile id rather than the base model id.

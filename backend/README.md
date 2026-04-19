@@ -6,6 +6,7 @@
 ![spring boot](https://img.shields.io/badge/spring%20boot-3.4-6db33f)
 ![ollama](https://img.shields.io/badge/ollama-default%20provider-222222)
 ![bedrock](https://img.shields.io/badge/bedrock-optional%20provider-ff9900)
+![huggingface](https://img.shields.io/badge/huggingface-hosted%20provider-fcc624)
 ![mcp](https://img.shields.io/badge/mcp-local%20tools-0a7ea4)
 
 Spring Boot API for chat, local sessions, artifact preview, and MCP-backed AWS tooling.
@@ -60,6 +61,7 @@ The backend uses a model-provider abstraction.
 
 - default provider: `ollama`
 - optional provider: `bedrock`
+- optional provider: `huggingface`
 
 Relevant settings:
 
@@ -68,6 +70,9 @@ Relevant settings:
 - `OLLAMA_DEFAULT_MODEL` default: `llama3:8b`
 - `BEDROCK_REGION` default: `us-east-1`
 - `BEDROCK_MODEL_ID` default: empty
+- `HUGGINGFACE_BASE_URL` default: `https://router.huggingface.co/v1/chat/completions`
+- `HUGGINGFACE_DEFAULT_MODEL` default: empty
+- `HUGGINGFACE_MODELS` default: empty
 
 Bedrock supports both normal chat and streaming chat.
 
@@ -75,6 +80,7 @@ For local provider switching without memorizing JVM flags, use the helper script
 
 - [`../scripts/run-backend-ollama.sh`](../scripts/run-backend-ollama.sh)
 - [`../scripts/run-backend-bedrock.sh`](../scripts/run-backend-bedrock.sh)
+- [`../scripts/run-backend-huggingface.sh`](../scripts/run-backend-huggingface.sh)
 
 Those scripts set the backend default provider. The chat API can still override provider per request at runtime.
 
@@ -82,9 +88,11 @@ Those scripts set the backend default provider. The chat API can still override 
 
 - `GET /api/models?provider=ollama`
 - `GET /api/models?provider=bedrock`
+- `GET /api/models?provider=huggingface`
 - if `provider` is omitted, the backend returns models for the configured default provider
 - `ollama`: returns installed local models from Ollama plus the configured default model
 - `bedrock`: returns discovered Bedrock inference profiles when available and falls back to the configured model id if discovery fails
+- `huggingface`: returns the curated configured model list plus the configured default model
 
 When a tool call succeeds, the backend still sends the enriched prompt to the selected model. It does not bypass the model or replace the final wording with a deterministic backend template by default. That means different models can still produce noticeably different final answers even when they receive the same grounded tool context.
 

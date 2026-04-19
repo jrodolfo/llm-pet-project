@@ -5,6 +5,7 @@ import net.jrodolfo.llm.client.ModelDiscoveryException;
 import net.jrodolfo.llm.client.OllamaClient;
 import net.jrodolfo.llm.config.AppModelProperties;
 import net.jrodolfo.llm.config.BedrockProperties;
+import net.jrodolfo.llm.config.HuggingFaceProperties;
 import net.jrodolfo.llm.config.OllamaProperties;
 import net.jrodolfo.llm.dto.AvailableModelsResponse;
 import net.jrodolfo.llm.provider.ChatModelProviderRegistry;
@@ -27,6 +28,7 @@ public class AvailableModelsService {
     private final ChatModelProviderRegistry chatModelProviderRegistry;
     private final OllamaProperties ollamaProperties;
     private final BedrockProperties bedrockProperties;
+    private final HuggingFaceProperties huggingFaceProperties;
     private final OllamaClient ollamaClient;
     private final BedrockCatalogClient bedrockCatalogClient;
 
@@ -34,12 +36,14 @@ public class AvailableModelsService {
             ChatModelProviderRegistry chatModelProviderRegistry,
             OllamaProperties ollamaProperties,
             BedrockProperties bedrockProperties,
+            HuggingFaceProperties huggingFaceProperties,
             OllamaClient ollamaClient,
             @Nullable BedrockCatalogClient bedrockCatalogClient
     ) {
         this.chatModelProviderRegistry = chatModelProviderRegistry;
         this.ollamaProperties = ollamaProperties;
         this.bedrockProperties = bedrockProperties;
+        this.huggingFaceProperties = huggingFaceProperties;
         this.ollamaClient = ollamaClient;
         this.bedrockCatalogClient = bedrockCatalogClient;
     }
@@ -55,6 +59,16 @@ public class AvailableModelsService {
                     chatModelProviderRegistry.defaultProvider(),
                     chatModelProviderRegistry.supportedProviders(),
                     modelId,
+                    models
+            );
+        }
+        if ("huggingface".equals(resolvedProvider)) {
+            List<String> models = resolveHuggingFaceModels();
+            return new AvailableModelsResponse(
+                    "huggingface",
+                    chatModelProviderRegistry.defaultProvider(),
+                    chatModelProviderRegistry.supportedProviders(),
+                    resolveDefaultHuggingFaceModel(models),
                     models
             );
         }
@@ -92,6 +106,34 @@ public class AvailableModelsService {
 
     private String resolveDefaultBedrockModel(List<String> models) {
         String configuredModelId = normalizeModel(bedrockProperties.modelId());
+        if (configuredModelId != null && models.contains(configuredModelId)) {
+            return configuredModelId;
+        }
+        if (!models.isEmpty()) {
+            return models.getFirst();
+        }
+        return configuredModelId;
+    }
+
+    private List<String> resolveHuggingFaceModels() {
+        LinkedHashSet<String> models = new LinkedHashSet<>();
+        if (huggingFaceProperties.models() != null) {
+            for (String model : huggingFaceProperties.models()) {
+                String normalized = normalizeModel(model);
+                if (normalized != null) {
+                    models.add(normalized);
+                }
+            }
+        }
+        String configuredModelId = normalizeModel(huggingFaceProperties.defaultModel());
+        if (configuredModelId != null) {
+            models.add(configuredModelId);
+        }
+        return List.copyOf(new ArrayList<>(models));
+    }
+
+    private String resolveDefaultHuggingFaceModel(List<String> models) {
+        String configuredModelId = normalizeModel(huggingFaceProperties.defaultModel());
         if (configuredModelId != null && models.contains(configuredModelId)) {
             return configuredModelId;
         }
