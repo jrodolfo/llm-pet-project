@@ -2,6 +2,8 @@ package net.jrodolfo.llm.dto;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 
+import java.util.List;
+
 @Schema(description = "Compact provider readiness and troubleshooting status for the chat UI.")
 public record ProviderStatusResponse(
         @Schema(description = "Provider whose status is being reported.", example = "ollama")
@@ -9,6 +11,15 @@ public record ProviderStatusResponse(
         @Schema(description = "Normalized status for the selected provider.", example = "ready")
         String status,
         @Schema(description = "Short user-facing explanation of the current provider state.")
-        String message
+        String message,
+        @Schema(description = "Configured candidate models considered for the selected provider when applicable.")
+        List<String> configuredModels,
+        @Schema(description = "Models currently validated as usable for the selected provider when applicable.")
+        List<String> usableModels,
+        @Schema(description = "Configured models that were rejected during provider validation when applicable.")
+        List<String> rejectedModels
 ) {
+    public ProviderStatusResponse(String provider, String status, String message) {
+        this(provider, status, message, List.of(), List.of(), List.of());
+    }
 }

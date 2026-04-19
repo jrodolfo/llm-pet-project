@@ -243,6 +243,15 @@
   text-transform: capitalize;
 }
 
+.provider-status-details {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 100%;
+  font-size: 0.84rem;
+  color: #475569;
+}
+
 .provider-status-ready {
   background: #ecfdf5;
   border-color: #86efac;

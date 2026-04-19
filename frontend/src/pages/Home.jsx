@@ -626,6 +626,17 @@ function Home() {
           <div className={`provider-status-banner provider-status-${providerStatus.status}`}>
             <strong>{`${formatProviderName(providerStatus.provider)} status: ${formatProviderStatus(providerStatus.status)}`}</strong>
             <span>{providerStatus.message}</span>
+            {providerStatus.configuredModels?.length ? (
+              <div className="provider-status-details">
+                <span>{`Configured: ${providerStatus.configuredModels.join(', ')}`}</span>
+                {providerStatus.usableModels?.length ? (
+                  <span>{`Usable: ${providerStatus.usableModels.join(', ')}`}</span>
+                ) : null}
+                {providerStatus.rejectedModels?.length ? (
+                  <span>{`Rejected: ${providerStatus.rejectedModels.join(', ')}`}</span>
+                ) : null}
+              </div>
+            ) : null}
           </div>
         ) : null}
 

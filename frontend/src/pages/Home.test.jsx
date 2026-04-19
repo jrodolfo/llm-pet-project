@@ -210,6 +210,40 @@ describe('Home', () => {
     expect(screen.getByText(/Bedrock status: misconfigured/i)).toBeInTheDocument();
   });
 
+  it('shows configured, usable, and rejected hugging face models in the status banner', async () => {
+    listAvailableModels.mockResolvedValue({
+      provider: 'huggingface',
+      defaultProvider: 'ollama',
+      providers: ['bedrock', 'huggingface', 'ollama'],
+      defaultModel: 'meta-llama/Llama-3.1-8B-Instruct',
+      models: ['meta-llama/Llama-3.1-8B-Instruct']
+    });
+    getProviderStatus.mockResolvedValue({
+      provider: 'huggingface',
+      status: 'ready',
+      message: 'Hugging Face is configured and ready.',
+      configuredModels: [
+        'meta-llama/Llama-3.1-8B-Instruct',
+        'Qwen/Qwen2.5-72B-Instruct',
+        'mistralai/Mistral-7B-Instruct-v0.3'
+      ],
+      usableModels: ['meta-llama/Llama-3.1-8B-Instruct'],
+      rejectedModels: [
+        'Qwen/Qwen2.5-72B-Instruct',
+        'mistralai/Mistral-7B-Instruct-v0.3'
+      ]
+    });
+
+    render(<Home />);
+
+    expect(await screen.findByRole('combobox', { name: /model/i })).toHaveValue('meta-llama/Llama-3.1-8B-Instruct');
+    expect(screen.getByText(/provider: Hugging Face/i)).toBeInTheDocument();
+    expect(screen.getByText(/Hugging Face status: ready/i)).toBeInTheDocument();
+    expect(screen.getByText(/Configured: meta-llama\/Llama-3\.1-8B-Instruct, Qwen\/Qwen2\.5-72B-Instruct, mistralai\/Mistral-7B-Instruct-v0\.3/i)).toBeInTheDocument();
+    expect(screen.getByText(/Usable: meta-llama\/Llama-3\.1-8B-Instruct/i)).toBeInTheDocument();
+    expect(screen.getByText(/Rejected: Qwen\/Qwen2\.5-72B-Instruct, mistralai\/Mistral-7B-Instruct-v0\.3/i)).toBeInTheDocument();
+  });
+
   it('switches provider and reloads provider-specific models', async () => {
     listAvailableModels
       .mockResolvedValueOnce({

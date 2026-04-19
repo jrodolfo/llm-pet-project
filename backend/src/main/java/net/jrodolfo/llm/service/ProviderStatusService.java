@@ -171,21 +171,39 @@ public class ProviderStatusService {
         if (defaultModel != null) {
             configuredCandidates.add(defaultModel);
         }
+        List<String> configuredModels = List.copyOf(configuredCandidates);
         try {
-            if (!huggingFaceClient.discoverUsableModels(List.copyOf(configuredCandidates)).isEmpty()) {
-                return new ProviderStatusResponse("huggingface", "ready", "Hugging Face is configured and ready.");
+            List<String> usableModels = huggingFaceClient.discoverUsableModels(configuredModels);
+            List<String> rejectedModels = configuredModels.stream()
+                    .filter(model -> !usableModels.contains(model))
+                    .toList();
+            if (!usableModels.isEmpty()) {
+                return new ProviderStatusResponse(
+                        "huggingface",
+                        "ready",
+                        "Hugging Face is configured and ready.",
+                        configuredModels,
+                        usableModels,
+                        rejectedModels
+                );
             }
         } catch (ModelDiscoveryException ex) {
             return new ProviderStatusResponse(
                     "huggingface",
                     "unreachable",
-                    "Hugging Face model discovery failed. Check the token, base URL, network access, or provider availability."
+                    "Hugging Face model discovery failed. Check the token, base URL, network access, or provider availability.",
+                    configuredModels,
+                    List.of(),
+                    configuredModels
             );
         }
         return new ProviderStatusResponse(
                 "huggingface",
                 "model_missing",
-                "No configured Hugging Face models are currently usable. Check the token, model ids, or provider access."
+                "No configured Hugging Face models are currently usable. Check the token, model ids, or provider access.",
+                configuredModels,
+                List.of(),
+                configuredModels
         );
     }
 

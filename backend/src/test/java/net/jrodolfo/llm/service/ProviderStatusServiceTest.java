@@ -104,6 +104,9 @@ class ProviderStatusServiceTest {
         ProviderStatusResponse response = service.getProviderStatus("huggingface");
 
         assertEquals("model_missing", response.status());
+        assertEquals(List.of("meta-llama/Llama-3.1-8B-Instruct"), response.configuredModels());
+        assertEquals(List.of(), response.usableModels());
+        assertEquals(List.of("meta-llama/Llama-3.1-8B-Instruct"), response.rejectedModels());
     }
 
     @Test
