@@ -166,7 +166,13 @@ public class AvailableModelsService {
         if (configuredCandidates.isEmpty() || huggingFaceClient == null) {
             return configuredCandidates;
         }
-        return huggingFaceClient.discoverUsableModels(configuredCandidates);
+        try {
+            return huggingFaceClient.discoverUsableModels(configuredCandidates);
+        } catch (ModelDiscoveryException ex) {
+            // Keep the selector functional when hosted model validation is temporarily unavailable.
+            // The provider status endpoint can still surface the discovery failure more explicitly.
+            return configuredCandidates;
+        }
     }
 
     private String resolveDefaultHuggingFaceModel(List<String> models) {

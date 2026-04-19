@@ -194,6 +194,34 @@ class AvailableModelsServiceTest {
         assertEquals(List.of("huggingface", "ollama"), response.providers());
     }
 
+    @Test
+    void huggingFaceFallsBackToConfiguredCandidatesWhenDiscoveryFails() {
+        AvailableModelsService service = new AvailableModelsService(
+                new ChatModelProviderRegistry(new AppModelProperties("huggingface"), java.util.Map.of(
+                        "ollama", new FakeProvider(),
+                        "huggingface", new FakeProvider()
+                )),
+                new OllamaProperties("http://localhost:11434", "llama3:8b", 10, 60),
+                new BedrockProperties("us-east-2", null),
+                new HuggingFaceProperties(
+                        "https://router.huggingface.co/v1/chat/completions",
+                        "token",
+                        "meta-llama/Llama-3.1-8B-Instruct",
+                        List.of("meta-llama/Llama-3.1-8B-Instruct", "Qwen/Qwen2.5-72B-Instruct"),
+                        10,
+                        60
+                ),
+                new FakeOllamaClient(List.of("llama3:8b")),
+                null,
+                new FailingHuggingFaceClient()
+        );
+
+        AvailableModelsResponse response = service.getAvailableModels("huggingface");
+
+        assertEquals("meta-llama/Llama-3.1-8B-Instruct", response.defaultModel());
+        assertEquals(List.of("meta-llama/Llama-3.1-8B-Instruct", "Qwen/Qwen2.5-72B-Instruct"), response.models());
+    }
+
     private static final class FakeProvider implements net.jrodolfo.llm.provider.ChatModelProvider {
         @Override
         public net.jrodolfo.llm.dto.ChatResponse chat(net.jrodolfo.llm.provider.ProviderPrompt prompt, String model, net.jrodolfo.llm.dto.ChatToolMetadata toolMetadata, java.util.Map<String, Object> toolResult, String sessionId, net.jrodolfo.llm.dto.PendingToolCallResponse pendingTool) {
@@ -243,6 +271,24 @@ class AvailableModelsServiceTest {
         @Override
         public List<String> discoverUsableModels(List<String> candidateModels) {
             return candidateModels.stream().filter(usableModels::contains).toList();
+        }
+    }
+
+    private static final class FailingHuggingFaceClient extends HuggingFaceClient {
+        private FailingHuggingFaceClient() {
+            super(new ObjectMapper(), new HuggingFaceProperties(
+                    "https://router.huggingface.co/v1/chat/completions",
+                    "token",
+                    "meta-llama/Llama-3.1-8B-Instruct",
+                    List.of("meta-llama/Llama-3.1-8B-Instruct"),
+                    10,
+                    60
+            ));
+        }
+
+        @Override
+        public List<String> discoverUsableModels(List<String> candidateModels) {
+            throw new ModelDiscoveryException("huggingface unavailable");
         }
     }
 }
