@@ -14,6 +14,7 @@ import java.net.http.HttpClient;
 import java.net.http.HttpHeaders;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.net.http.HttpTimeoutException;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
@@ -28,6 +29,7 @@ import javax.net.ssl.SSLParameters;
 import javax.net.ssl.SSLSession;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class HuggingFaceClientTest {
 
@@ -79,6 +81,53 @@ class HuggingFaceClientTest {
         assertEquals(List.of("meta-llama/Llama-3.1-8B-Instruct"), first);
         assertEquals(List.of("meta-llama/Llama-3.1-8B-Instruct", "Qwen/Qwen2.5-72B-Instruct"), second);
         assertEquals(3, httpClient.sendCount());
+    }
+
+    @Test
+    void chatClassifiesAuthenticationFailuresClearly() {
+        RecordingHttpClient httpClient = new RecordingHttpClient();
+        httpClient.addResponse(
+                "meta-llama/Llama-3.1-8B-Instruct",
+                401,
+                "{\"error\":{\"message\":\"invalid token\"}}"
+        );
+
+        HuggingFaceClient client = new HuggingFaceClient(
+                new ObjectMapper(),
+                properties(),
+                httpClient
+        );
+
+        ModelProviderException exception = assertThrows(
+                ModelProviderException.class,
+                () -> client.chat(List.of(), "meta-llama/Llama-3.1-8B-Instruct")
+        );
+
+        assertEquals(
+                "Hugging Face authentication failed. Check HUGGINGFACE_API_TOKEN and model access. Provider message: invalid token",
+                exception.getMessage()
+        );
+    }
+
+    @Test
+    void chatClassifiesTimeoutFailuresClearly() {
+        TimeoutHttpClient httpClient = new TimeoutHttpClient();
+
+        HuggingFaceClient client = new HuggingFaceClient(
+                new ObjectMapper(),
+                properties(),
+                httpClient
+        );
+
+        ModelProviderException exception = assertThrows(
+                ModelProviderException.class,
+                () -> client.chat(List.of(), "meta-llama/Llama-3.1-8B-Instruct")
+        );
+
+        assertEquals(
+                "Hugging Face request timed out after 60s. Try again or increase HUGGINGFACE_READ_TIMEOUT_SECONDS.",
+                exception.getMessage()
+        );
     }
 
     private HuggingFaceProperties properties() {
@@ -197,6 +246,76 @@ class HuggingFaceClientTest {
         private String extractModel(String requestBody) throws IOException {
             JsonNodeWrapper root = JsonNodeWrapper.parse(requestBody);
             return root.model();
+        }
+    }
+
+    private static final class TimeoutHttpClient extends HttpClient {
+        @Override
+        public Optional<CookieHandler> cookieHandler() {
+            return Optional.empty();
+        }
+
+        @Override
+        public Optional<Duration> connectTimeout() {
+            return Optional.of(Duration.ofSeconds(1));
+        }
+
+        @Override
+        public Redirect followRedirects() {
+            return Redirect.NEVER;
+        }
+
+        @Override
+        public Optional<ProxySelector> proxy() {
+            return Optional.empty();
+        }
+
+        @Override
+        public SSLContext sslContext() {
+            return null;
+        }
+
+        @Override
+        public SSLParameters sslParameters() {
+            return null;
+        }
+
+        @Override
+        public Optional<Authenticator> authenticator() {
+            return Optional.empty();
+        }
+
+        @Override
+        public Version version() {
+            return Version.HTTP_1_1;
+        }
+
+        @Override
+        public Optional<Executor> executor() {
+            return Optional.empty();
+        }
+
+        @Override
+        public <T> HttpResponse<T> send(HttpRequest request, HttpResponse.BodyHandler<T> responseBodyHandler)
+                throws IOException {
+            throw new HttpTimeoutException("timed out");
+        }
+
+        @Override
+        public <T> java.util.concurrent.CompletableFuture<HttpResponse<T>> sendAsync(
+                HttpRequest request,
+                HttpResponse.BodyHandler<T> responseBodyHandler
+        ) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public <T> java.util.concurrent.CompletableFuture<HttpResponse<T>> sendAsync(
+                HttpRequest request,
+                HttpResponse.BodyHandler<T> responseBodyHandler,
+                HttpResponse.PushPromiseHandler<T> pushPromiseHandler
+        ) {
+            throw new UnsupportedOperationException();
         }
     }
 

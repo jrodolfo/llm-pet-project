@@ -10,7 +10,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 BACKEND_DIR="${REPO_ROOT}/backend"
-ENV_FILE="${REPO_ROOT}/.env"
+ENV_FILE="${ENV_FILE:-${REPO_ROOT}/.env}"
 
 load_env_defaults() {
   local env_file="$1"
@@ -53,6 +53,7 @@ HUGGINGFACE_DEFAULT_MODEL="${HUGGINGFACE_DEFAULT_MODEL:-meta-llama/Llama-3.1-8B-
 HUGGINGFACE_MODELS="${HUGGINGFACE_MODELS:-${HUGGINGFACE_DEFAULT_MODEL}}"
 HUGGINGFACE_API_TOKEN="${HUGGINGFACE_API_TOKEN:-}"
 MCP_ENABLED="${MCP_ENABLED:-true}"
+DRY_RUN="${DRY_RUN:-false}"
 
 export APP_MODEL_PROVIDER
 export OLLAMA_BASE_URL
@@ -64,6 +65,7 @@ export HUGGINGFACE_DEFAULT_MODEL
 export HUGGINGFACE_MODELS
 export HUGGINGFACE_API_TOKEN
 export MCP_ENABLED
+export DRY_RUN
 
 case "${APP_MODEL_PROVIDER}" in
   ollama|bedrock|huggingface)
@@ -91,6 +93,10 @@ printf '%s\n' \
   "  huggingface_models=${HUGGINGFACE_MODELS}" \
   "  huggingface_token_configured=$([ -n "${HUGGINGFACE_API_TOKEN}" ] && printf '%s' 'true' || printf '%s' 'false')" \
   "  mcp_enabled=${MCP_ENABLED}"
+
+if [ "${DRY_RUN}" = "true" ]; then
+  exit 0
+fi
 
 cd "${BACKEND_DIR}"
 

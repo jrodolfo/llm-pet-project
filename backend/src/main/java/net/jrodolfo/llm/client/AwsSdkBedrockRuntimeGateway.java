@@ -55,9 +55,9 @@ public class AwsSdkBedrockRuntimeGateway implements BedrockRuntimeGateway {
             ConverseResponse response = bedrockRuntimeClient.converse(request);
             return toReply(response, modelId, startedAt);
         } catch (ValidationException ex) {
-            throw new ModelProviderException("Bedrock request validation failed: " + ex.getMessage(), ex);
+            throw new ModelProviderException(classifyBedrockFailure(ex, false), ex);
         } catch (RuntimeException ex) {
-            throw new ModelProviderException("Failed to call Bedrock converse endpoint.", ex);
+            throw new ModelProviderException(classifyBedrockFailure(ex, false), ex);
         }
     }
 
@@ -70,9 +70,9 @@ public class AwsSdkBedrockRuntimeGateway implements BedrockRuntimeGateway {
             ConverseResponse response = bedrockRuntimeClient.converse(request);
             return toReply(response, modelId, startedAt);
         } catch (ValidationException ex) {
-            throw new ModelProviderException("Bedrock request validation failed: " + ex.getMessage(), ex);
+            throw new ModelProviderException(classifyBedrockFailure(ex, false), ex);
         } catch (RuntimeException ex) {
-            throw new ModelProviderException("Failed to call Bedrock converse endpoint.", ex);
+            throw new ModelProviderException(classifyBedrockFailure(ex, false), ex);
         }
     }
 
@@ -82,11 +82,11 @@ public class AwsSdkBedrockRuntimeGateway implements BedrockRuntimeGateway {
             ConverseStreamRequest request = buildConverseStreamRequest(buildUserMessage(prompt), List.of(), modelId);
             return stream(request, modelId, chunkConsumer);
         } catch (ValidationException ex) {
-            throw new ModelProviderException("Bedrock request validation failed: " + ex.getMessage(), ex);
+            throw new ModelProviderException(classifyBedrockFailure(ex, true), ex);
         } catch (SdkException ex) {
-            throw new ModelProviderException("Failed to stream from Bedrock.", ex);
+            throw new ModelProviderException(classifyBedrockFailure(ex, true), ex);
         } catch (RuntimeException ex) {
-            throw new ModelProviderException("Failed to stream from Bedrock.", ex);
+            throw new ModelProviderException(classifyBedrockFailure(ex, true), ex);
         }
     }
 
@@ -101,11 +101,11 @@ public class AwsSdkBedrockRuntimeGateway implements BedrockRuntimeGateway {
             ConverseStreamRequest request = buildConverseStreamRequest(prompt.messages(), prompt.system(), modelId);
             return stream(request, modelId, chunkConsumer);
         } catch (ValidationException ex) {
-            throw new ModelProviderException("Bedrock request validation failed: " + ex.getMessage(), ex);
+            throw new ModelProviderException(classifyBedrockFailure(ex, true), ex);
         } catch (SdkException ex) {
-            throw new ModelProviderException("Failed to stream from Bedrock.", ex);
+            throw new ModelProviderException(classifyBedrockFailure(ex, true), ex);
         } catch (RuntimeException ex) {
-            throw new ModelProviderException("Failed to stream from Bedrock.", ex);
+            throw new ModelProviderException(classifyBedrockFailure(ex, true), ex);
         }
     }
 
@@ -126,9 +126,9 @@ public class AwsSdkBedrockRuntimeGateway implements BedrockRuntimeGateway {
                             .onContentBlockDelta(event -> forwardChunk(event, chunkConsumer))
                             .onMessageStop(event -> captureStopReason(event, stopReason))
                             .onMetadata(event -> captureMetadata(event, usage, metrics))
-                            .build())
+                    .build())
                     .onError(error -> metadataFuture.completeExceptionally(
-                            new ModelProviderException("Failed to stream from Bedrock.", error)
+                            new ModelProviderException(classifyBedrockFailure(error, true), error)
                     ))
                     .onComplete(() -> {
                         TokenUsage finalUsage = usage.get();
@@ -158,7 +158,7 @@ public class AwsSdkBedrockRuntimeGateway implements BedrockRuntimeGateway {
             streamFuture.whenComplete((ignored, throwable) -> {
                 if (throwable != null) {
                     metadataFuture.completeExceptionally(new ModelProviderException(
-                            "Failed to stream from Bedrock.",
+                            classifyBedrockFailure(unwrapCompletionException(throwable), true),
                             unwrapCompletionException(throwable)
                     ));
                 }
@@ -287,5 +287,37 @@ public class AwsSdkBedrockRuntimeGateway implements BedrockRuntimeGateway {
             return completionException.getCause();
         }
         return throwable;
+    }
+
+    private String classifyBedrockFailure(Throwable throwable, boolean streaming) {
+        String operation = streaming ? "stream" : "request";
+        if (throwable instanceof ValidationException ex) {
+            return "Bedrock request validation failed: " + ex.getMessage();
+        }
+        String message = throwable.getMessage();
+        String lowerMessage = message == null ? "" : message.toLowerCase();
+        if (lowerMessage.contains("security token")
+                || lowerMessage.contains("access denied")
+                || lowerMessage.contains("unable to load credentials")
+                || lowerMessage.contains("not authorized")) {
+            return "Bedrock authentication failed. Check AWS credentials, profile, and model access.";
+        }
+        if (lowerMessage.contains("resource not found")
+                || lowerMessage.contains("model not found")
+                || lowerMessage.contains("inference profile")
+                || lowerMessage.contains("not supported on-demand throughput")) {
+            return "The selected Bedrock model or inference profile is unavailable in the configured region.";
+        }
+        if (lowerMessage.contains("timed out") || lowerMessage.contains("timeout")) {
+            return "Bedrock " + operation + " timed out. Try again or use a different model.";
+        }
+        if (lowerMessage.contains("connection refused")
+                || lowerMessage.contains("unknown host")
+                || lowerMessage.contains("failed to connect")) {
+            return "Bedrock endpoint is unreachable. Check network access and AWS region configuration.";
+        }
+        return streaming
+                ? "Failed to stream from Bedrock."
+                : "Failed to call Bedrock converse endpoint.";
     }
 }

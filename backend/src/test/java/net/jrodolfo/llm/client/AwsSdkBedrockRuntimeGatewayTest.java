@@ -19,6 +19,7 @@ import software.amazon.awssdk.services.bedrockruntime.model.MessageStopEvent;
 import software.amazon.awssdk.services.bedrockruntime.model.StopReason;
 import software.amazon.awssdk.services.bedrockruntime.model.SystemContentBlock;
 import software.amazon.awssdk.services.bedrockruntime.model.TokenUsage;
+import software.amazon.awssdk.services.bedrockruntime.model.ValidationException;
 
 import java.lang.reflect.Proxy;
 import java.lang.reflect.Method;
@@ -182,6 +183,46 @@ class AwsSdkBedrockRuntimeGatewayTest {
 
         assertEquals(ModelProviderException.class, exception.getCause().getClass());
         assertEquals("Failed to stream from Bedrock.", exception.getCause().getMessage());
+    }
+
+    @Test
+    void converseClassifiesAuthenticationFailuresClearly() {
+        BedrockRuntimeClient syncClient = (BedrockRuntimeClient) Proxy.newProxyInstance(
+                BedrockRuntimeClient.class.getClassLoader(),
+                new Class<?>[]{BedrockRuntimeClient.class},
+                (proxy, method, args) -> {
+                    if ("converse".equals(method.getName())) {
+                        throw new RuntimeException("The security token included in the request is invalid");
+                    }
+                    return defaultValue(method.getReturnType());
+                }
+        );
+        AwsSdkBedrockRuntimeGateway gateway = new AwsSdkBedrockRuntimeGateway(syncClient, asyncClient((request, handler) -> CompletableFuture.completedFuture(null)));
+
+        ModelProviderException exception = assertThrows(
+                ModelProviderException.class,
+                () -> gateway.converse("prompt", "amazon.nova-lite-v1:0")
+        );
+
+        assertEquals(
+                "Bedrock authentication failed. Check AWS credentials, profile, and model access.",
+                exception.getMessage()
+        );
+    }
+
+    @Test
+    void converseStreamClassifiesValidationFailuresClearly() {
+        BedrockRuntimeAsyncClient asyncClient = asyncClient((request, handler) -> {
+            throw ValidationException.builder().message("ValidationException: bad model id").build();
+        });
+        AwsSdkBedrockRuntimeGateway gateway = new AwsSdkBedrockRuntimeGateway(syncClient(), asyncClient);
+
+        ModelProviderException exception = assertThrows(
+                ModelProviderException.class,
+                () -> gateway.converseStream("prompt", "bad-model", chunk -> { })
+        );
+
+        assertEquals("Bedrock request validation failed: ValidationException: bad model id", exception.getMessage());
     }
 
     @Test

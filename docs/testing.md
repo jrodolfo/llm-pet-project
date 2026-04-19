@@ -82,7 +82,7 @@ make lint
 
 Covers:
 - shell behavior for the AWS audit and S3 CloudWatch report scripts
-- helper script linting and basic script correctness
+- unified backend startup script linting and `.env` precedence behavior
 
 Use this suite when changing:
 - `aws-region-audit-report.sh`

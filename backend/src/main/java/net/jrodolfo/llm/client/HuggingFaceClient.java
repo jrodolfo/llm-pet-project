@@ -11,6 +11,7 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.net.http.HttpTimeoutException;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
@@ -101,7 +102,7 @@ public class HuggingFaceClient {
             Thread.currentThread().interrupt();
             throw new ModelProviderException("Hugging Face request was interrupted.", ex);
         } catch (IOException ex) {
-            throw new ModelProviderException("Hugging Face request failed.", ex);
+            throw new ModelProviderException(buildRequestFailureMessage(ex), ex);
         }
     }
 
@@ -188,20 +189,59 @@ public class HuggingFaceClient {
     }
 
     private String parseErrorMessage(String responseBody, int statusCode) {
+        String providerMessage = null;
         try {
             JsonNode root = objectMapper.readTree(responseBody);
             JsonNode errorNode = root.path("error");
             if (errorNode.isTextual() && !errorNode.asText().isBlank()) {
-                return "Hugging Face request failed: " + errorNode.asText();
+                providerMessage = errorNode.asText();
             }
             JsonNode messageNode = errorNode.path("message");
             if (messageNode.isTextual() && !messageNode.asText().isBlank()) {
-                return "Hugging Face request failed: " + messageNode.asText();
+                providerMessage = messageNode.asText();
             }
         } catch (IOException ignored) {
             // Fall through to the generic error below.
         }
-        return "Hugging Face request failed with status " + statusCode + ".";
+
+        return switch (statusCode) {
+            case 401, 403 -> "Hugging Face authentication failed. Check HUGGINGFACE_API_TOKEN and model access."
+                    + appendProviderMessage(providerMessage);
+            case 404 -> "The selected Hugging Face model or endpoint is unavailable."
+                    + appendProviderMessage(providerMessage);
+            case 429 -> "Hugging Face rate limited the request. Wait and try again."
+                    + appendProviderMessage(providerMessage);
+            default -> statusCode >= 500
+                    ? "Hugging Face is currently unavailable."
+                    + appendProviderMessage(providerMessage)
+                    : "Hugging Face request failed with status " + statusCode + "."
+                    + appendProviderMessage(providerMessage);
+        };
+    }
+
+    private String buildRequestFailureMessage(IOException ex) {
+        if (ex instanceof HttpTimeoutException) {
+            return "Hugging Face request timed out after " + Math.max(1, huggingFaceProperties.readTimeoutSeconds())
+                    + "s. Try again or increase HUGGINGFACE_READ_TIMEOUT_SECONDS.";
+        }
+        String message = ex.getMessage();
+        if (message != null) {
+            String lowerMessage = message.toLowerCase();
+            if (lowerMessage.contains("connection refused")
+                    || lowerMessage.contains("unknown host")
+                    || lowerMessage.contains("name or service not known")
+                    || lowerMessage.contains("failed to connect")) {
+                return "Hugging Face endpoint is unreachable. Check network access and HUGGINGFACE_BASE_URL.";
+            }
+        }
+        return "Hugging Face request failed. Check network access, model availability, or provider configuration.";
+    }
+
+    private String appendProviderMessage(String providerMessage) {
+        if (providerMessage == null || providerMessage.isBlank()) {
+            return "";
+        }
+        return " Provider message: " + providerMessage;
     }
 
     private Integer intValue(JsonNode node) {

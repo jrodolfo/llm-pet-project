@@ -47,6 +47,7 @@ lint:
 test:
 	@bash ./tests/test.sh
 	@bash ./tests/test-s3-cloudwatch.sh
+	@bash ./tests/test-run-backend.sh
 
 check-app:
 	@./check-app.sh
