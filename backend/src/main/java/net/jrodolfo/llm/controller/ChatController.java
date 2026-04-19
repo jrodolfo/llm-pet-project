@@ -27,12 +27,15 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
+import jakarta.servlet.http.HttpServletResponse;
 
 import java.io.IOException;
 import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.Executor;
@@ -51,6 +54,7 @@ import java.util.concurrent.atomic.AtomicReference;
 public class ChatController {
 
     private static final long STREAM_TIMEOUT_MS = 10 * 60 * 1000L;
+    private static final String REQUEST_ID_HEADER = "X-Request-Id";
     private static final Logger log = LoggerFactory.getLogger(ChatController.class);
 
     private final ChatOrchestratorService chatOrchestratorService;
@@ -74,32 +78,46 @@ public class ChatController {
             @ApiResponse(responseCode = "400", description = "Invalid request body."),
             @ApiResponse(responseCode = "502", description = "Provider or MCP integration failed.")
     })
-    public ChatResponse chat(@Valid @RequestBody ChatRequest request) {
+    public ResponseEntity<ChatResponse> chat(
+            @Valid @RequestBody ChatRequest request,
+            @RequestHeader(value = REQUEST_ID_HEADER, required = false) String requestIdHeader
+    ) {
+        String requestId = resolveRequestId(requestIdHeader);
         long startedAt = System.nanoTime();
         log.info(
-                "chat_request_start provider={} model={} sessionId={} streaming=false",
+                "requestId={} chat_request_start provider={} model={} sessionId={} streaming=false",
+                requestId,
                 request.provider(),
                 request.model(),
                 request.sessionId()
         );
-        ChatResponse response = chatOrchestratorService.chat(request.message(), request.provider(), request.model(), request.sessionId());
+        ChatResponse response = chatOrchestratorService.chat(
+                request.message(),
+                request.provider(),
+                request.model(),
+                request.sessionId(),
+                requestId
+        );
         long backendDurationMs = elapsedMillis(startedAt);
         log.info(
-                "chat_request_complete provider={} model={} sessionId={} streaming=false backendDurationMs={}",
+                "requestId={} chat_request_complete provider={} model={} sessionId={} streaming=false backendDurationMs={}",
+                requestId,
                 request.provider(),
                 response.model(),
                 response.sessionId(),
                 backendDurationMs
         );
-        return new ChatResponse(
-                response.response(),
-                response.model(),
-                response.tool(),
-                response.toolResult(),
-                response.sessionId(),
-                response.pendingTool(),
-                withBackendDuration(response.metadata(), backendDurationMs)
-        );
+        return ResponseEntity.ok()
+                .header(REQUEST_ID_HEADER, requestId)
+                .body(new ChatResponse(
+                        response.response(),
+                        response.model(),
+                        response.tool(),
+                        response.toolResult(),
+                        response.sessionId(),
+                        response.pendingTool(),
+                        withBackendDuration(response.metadata(), backendDurationMs)
+                ));
     }
 
     @PostMapping(value = "/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
@@ -117,9 +135,15 @@ public class ChatController {
             @ApiResponse(responseCode = "400", description = "Invalid request body."),
             @ApiResponse(responseCode = "502", description = "Provider or MCP integration failed.")
     })
-    public SseEmitter stream(@Valid @RequestBody ChatRequest request) {
+    public SseEmitter stream(
+            @Valid @RequestBody ChatRequest request,
+            @RequestHeader(value = REQUEST_ID_HEADER, required = false) String requestIdHeader,
+            HttpServletResponse response
+    ) {
+        String requestId = resolveRequestId(requestIdHeader);
+        response.setHeader(REQUEST_ID_HEADER, requestId);
         SseEmitter emitter = new SseEmitter(STREAM_TIMEOUT_MS);
-        stream(request, emitter);
+        stream(request, emitter, requestId);
         return emitter;
     }
 
@@ -131,9 +155,14 @@ public class ChatController {
      * are treated as client disconnects rather than provider failures.
      */
     void stream(ChatRequest request, SseEmitter emitter) {
+        stream(request, emitter, resolveRequestId(null));
+    }
+
+    void stream(ChatRequest request, SseEmitter emitter, String requestId) {
         long startedAt = System.nanoTime();
         log.info(
-                "chat_request_start provider={} model={} sessionId={} streaming=true",
+                "requestId={} chat_request_start provider={} model={} sessionId={} streaming=true",
+                requestId,
                 request.provider(),
                 request.model(),
                 request.sessionId()
@@ -166,7 +195,8 @@ public class ChatController {
                         request.message(),
                         request.provider(),
                         request.model(),
-                        request.sessionId()
+                        request.sessionId(),
+                        requestId
                 );
 
                 if (!sendEvent(emitter, streamClosed, ChatStreamEvent.start(
@@ -197,7 +227,8 @@ public class ChatController {
                         return;
                     }
                     log.info(
-                            "chat_request_complete provider={} model={} sessionId={} streaming=true backendDurationMs={} immediateResponse=true",
+                            "requestId={} chat_request_complete provider={} model={} sessionId={} streaming=true backendDurationMs={} immediateResponse=true",
+                            requestId,
                             request.provider(),
                             preparedChat.immediateResponse().model(),
                             preparedChat.immediateResponse().sessionId(),
@@ -228,7 +259,7 @@ public class ChatController {
                     streamAborted.set(true);
                     return;
                 }
-                chatOrchestratorService.completePreparedChat(preparedChat, responseBuffer.toString(), providerMetadata);
+                chatOrchestratorService.completePreparedChat(preparedChat, responseBuffer.toString(), providerMetadata, requestId);
                 long backendDurationMs = elapsedMillis(startedAt);
                 if (!sendEvent(emitter, streamClosed, ChatStreamEvent.complete(
                         preparedChat.session().sessionId(),
@@ -241,7 +272,8 @@ public class ChatController {
                     return;
                 }
                 log.info(
-                        "chat_request_complete provider={} model={} sessionId={} streaming=true backendDurationMs={} immediateResponse=false",
+                        "requestId={} chat_request_complete provider={} model={} sessionId={} streaming=true backendDurationMs={} immediateResponse=false",
+                        requestId,
                         request.provider(),
                         preparedChat.model(),
                         preparedChat.session().sessionId(),
@@ -254,7 +286,8 @@ public class ChatController {
                 Throwable cause = unwrapCompletionException(ex);
                 if (!streamClosed.get()) {
                     log.warn(
-                            "chat_request_failed provider={} model={} sessionId={} streaming=true message={}",
+                            "requestId={} chat_request_failed provider={} model={} sessionId={} streaming=true message={}",
+                            requestId,
                             request.provider(),
                             request.model(),
                             request.sessionId(),
@@ -265,7 +298,8 @@ public class ChatController {
             } finally {
                 if (streamAborted.get()) {
                     log.info(
-                            "chat_request_aborted provider={} model={} sessionId={} streaming=true",
+                            "requestId={} chat_request_aborted provider={} model={} sessionId={} streaming=true",
+                            requestId,
                             request.provider(),
                             request.model(),
                             request.sessionId()
@@ -307,6 +341,13 @@ public class ChatController {
         log.warn("Invalid provider", ex);
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                 .body(Map.of("error", ex.getMessage()));
+    }
+
+    private String resolveRequestId(String requestIdHeader) {
+        if (requestIdHeader == null || requestIdHeader.isBlank()) {
+            return UUID.randomUUID().toString();
+        }
+        return requestIdHeader.trim();
     }
 
     private boolean sendEvent(SseEmitter emitter, AtomicBoolean streamClosed, ChatStreamEvent event) {

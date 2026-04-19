@@ -214,6 +214,11 @@ class ApiSmokeIntegrationTest {
         public ChatResponse chat(String message, String provider, String model, String sessionId) {
             return response;
         }
+
+        @Override
+        public ChatResponse chat(String message, String provider, String model, String sessionId, String requestId) {
+            return response;
+        }
     }
 
     static final class FakeAvailableModelsService extends AvailableModelsService {

@@ -61,7 +61,11 @@ public class ChatOrchestratorService {
     }
 
     public ChatResponse chat(String message, String provider, String model, String sessionId) {
-        PreparedChat preparedChat = prepareChat(message, provider, model, sessionId);
+        return chat(message, provider, model, sessionId, null);
+    }
+
+    public ChatResponse chat(String message, String provider, String model, String sessionId, String requestId) {
+        PreparedChat preparedChat = prepareChat(message, provider, model, sessionId, requestId);
         if (preparedChat.immediateResponse() != null) {
             return preparedChat.immediateResponse();
         }
@@ -91,6 +95,13 @@ public class ChatOrchestratorService {
      * prompt-backed continuation that can be executed later.
      */
     public PreparedChat prepareChat(String message, String provider, String model, String sessionId) {
+        return prepareChat(message, provider, model, sessionId, null);
+    }
+
+    /**
+     * Prepares a chat turn and includes the current request id in orchestration logs.
+     */
+    public PreparedChat prepareChat(String message, String provider, String model, String sessionId, String requestId) {
         ChatModelProvider chatModelProvider = chatModelProviderRegistry.get(provider);
         String resolvedModel = chatModelProvider.resolveModel(model);
         ChatSession session = chatMemoryService.startTurn(sessionId, model, resolvedModel, message);
@@ -98,7 +109,8 @@ public class ChatOrchestratorService {
         ChatToolRouterService.ToolDecision routedDecision = toolDecisionService.route(message, resolvedProvider, resolvedModel);
         ChatToolRouterService.ToolDecision decision = resolveDecision(session, message, resolvedProvider, resolvedModel, routedDecision);
         log.info(
-                "chat_prepare sessionId={} provider={} model={} decisionType={} needsClarification={} usesTool={}",
+                "requestId={} chat_prepare sessionId={} provider={} model={} decisionType={} needsClarification={} usesTool={}",
+                requestId,
                 session.sessionId(),
                 resolvedProvider,
                 resolvedModel,
@@ -133,7 +145,8 @@ public class ChatOrchestratorService {
 
         try {
             log.info(
-                    "tool_execution_start sessionId={} provider={} model={} tool={} reason={}",
+                    "requestId={} tool_execution_start sessionId={} provider={} model={} tool={} reason={}",
+                    requestId,
                     session.sessionId(),
                     resolvedProvider,
                     resolvedModel,
@@ -142,7 +155,8 @@ public class ChatOrchestratorService {
             );
             ToolExecution execution = executeTool(decision);
             log.info(
-                    "tool_execution_complete sessionId={} provider={} model={} tool={} summary={}",
+                    "requestId={} tool_execution_complete sessionId={} provider={} model={} tool={} summary={}",
+                    requestId,
                     session.sessionId(),
                     resolvedProvider,
                     resolvedModel,
@@ -164,7 +178,8 @@ public class ChatOrchestratorService {
             return PreparedChat.forPrompt(chatModelProvider, augmentedPrompt, resolvedModel, metadata, execution.toolResult(reportsDirectory), clearedSession);
         } catch (IllegalArgumentException | McpClientException ex) {
             log.warn(
-                    "tool_execution_failed sessionId={} provider={} model={} tool={} message={}",
+                    "requestId={} tool_execution_failed sessionId={} provider={} model={} tool={} message={}",
+                    requestId,
                     session.sessionId(),
                     resolvedProvider,
                     resolvedModel,
@@ -203,9 +218,25 @@ public class ChatOrchestratorService {
             String assistantResponse,
             net.jrodolfo.llm.dto.ModelProviderMetadata providerMetadata
     ) {
+        return completePreparedChat(preparedChat, assistantResponse, providerMetadata, null);
+    }
+
+    public ChatSession completePreparedChat(
+            PreparedChat preparedChat,
+            String assistantResponse,
+            net.jrodolfo.llm.dto.ModelProviderMetadata providerMetadata,
+            String requestId
+    ) {
         if (preparedChat.immediateResponse() != null || preparedChat.session() == null) {
             throw new IllegalArgumentException("Only prompt-based prepared chats can be completed.");
         }
+        log.info(
+                "requestId={} chat_persist_response sessionId={} provider={} model={}",
+                requestId,
+                preparedChat.session().sessionId(),
+                providerMetadata != null ? providerMetadata.provider() : null,
+                preparedChat.model()
+        );
         return chatMemoryService.finishTurn(
                 preparedChat.session(),
                 assistantResponse,

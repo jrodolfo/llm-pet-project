@@ -139,3 +139,14 @@ Typical reasons:
 - Bedrock credentials/access not available
 
 This is an application-level failure, not just a process-level one. The UI will usually be degraded until model discovery works.
+
+## Correlating A Failed Chat Request
+
+Chat responses now include an `X-Request-Id` header. The backend logs use the same request id for:
+
+- request start
+- request completion
+- stream aborts
+- tool execution start / completion / failure
+
+If a request fails or behaves unexpectedly, capture the request id and grep the backend logs for it.

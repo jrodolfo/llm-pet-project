@@ -17,6 +17,7 @@ import net.jrodolfo.llm.service.InvalidProviderException;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.io.IOException;
@@ -41,16 +42,35 @@ class ChatControllerTest {
         TestOrchestrator orchestrator = new TestOrchestrator();
         ChatController controller = new ChatController(orchestrator, new ObjectMapper(), Runnable::run);
 
-        ChatResponse response = controller.chat(new ChatRequest("hello", "bedrock", "us.amazon.nova-pro-v1:0", "session-9"));
+        ResponseEntity<ChatResponse> response = controller.chat(
+                new ChatRequest("hello", "bedrock", "us.amazon.nova-pro-v1:0", "session-9"),
+                "req-123"
+        );
 
         assertEquals("hello", orchestrator.lastMessage);
         assertEquals("bedrock", orchestrator.lastProvider);
         assertEquals("us.amazon.nova-pro-v1:0", orchestrator.lastModel);
         assertEquals("session-9", orchestrator.lastSessionId);
-        assertEquals("hello response", response.response());
-        assertEquals("bedrock", response.metadata().provider());
-        assertEquals("us.amazon.nova-pro-v1:0", response.metadata().modelId());
-        assertTrue(response.metadata().backendDurationMs() >= 0);
+        assertEquals("req-123", orchestrator.lastRequestId);
+        assertEquals("req-123", response.getHeaders().getFirst("X-Request-Id"));
+        assertEquals("hello response", response.getBody().response());
+        assertEquals("bedrock", response.getBody().metadata().provider());
+        assertEquals("us.amazon.nova-pro-v1:0", response.getBody().metadata().modelId());
+        assertTrue(response.getBody().metadata().backendDurationMs() >= 0);
+    }
+
+    @Test
+    void chatGeneratesRequestIdWhenHeaderMissing() {
+        TestOrchestrator orchestrator = new TestOrchestrator();
+        ChatController controller = new ChatController(orchestrator, new ObjectMapper(), Runnable::run);
+
+        ResponseEntity<ChatResponse> response = controller.chat(
+                new ChatRequest("hello", "bedrock", "us.amazon.nova-pro-v1:0", "session-9"),
+                null
+        );
+
+        assertTrue(orchestrator.lastRequestId != null && !orchestrator.lastRequestId.isBlank());
+        assertEquals(orchestrator.lastRequestId, response.getHeaders().getFirst("X-Request-Id"));
     }
 
     @Test
@@ -100,6 +120,18 @@ class ChatControllerTest {
         }
     }
 
+    @Test
+    void streamSetsRequestIdHeaderAndPassesItToOrchestrator() {
+        TestOrchestrator orchestrator = new TestOrchestrator();
+        ChatController controller = new ChatController(orchestrator, new ObjectMapper(), Runnable::run);
+        MockHttpServletResponse response = new MockHttpServletResponse();
+
+        controller.stream(new ChatRequest("hello", "ollama", "llama3:8b", null), "req-stream-7", response);
+
+        assertEquals("req-stream-7", response.getHeader("X-Request-Id"));
+        assertEquals("req-stream-7", orchestrator.lastRequestId);
+    }
+
     private static final class TestOrchestrator extends ChatOrchestratorService {
         private ChatModelProvider provider = new SynchronousStreamingProvider();
         private final PreparedChat preparedChat;
@@ -108,6 +140,7 @@ class ChatControllerTest {
         private String lastProvider;
         private String lastModel;
         private String lastSessionId;
+        private String lastRequestId;
 
         private TestOrchestrator() {
             super(new ChatModelProviderRegistry(new net.jrodolfo.llm.config.AppModelProperties("ollama"), java.util.Map.of("ollama", new SynchronousStreamingProvider())), null, null, null, null, null, new AppStorageProperties("data/sessions", "scripts/reports"));
@@ -133,8 +166,20 @@ class ChatControllerTest {
         }
 
         @Override
+        public ChatResponse chat(String message, String provider, String model, String sessionId, String requestId) {
+            this.lastRequestId = requestId;
+            return chat(message, provider, model, sessionId);
+        }
+
+        @Override
         public PreparedChat prepareChat(String message, String provider, String model, String sessionId) {
             return new PreparedChat(this.provider, preparedChat.prompt(), preparedChat.model(), preparedChat.toolMetadata(), preparedChat.toolResult(), preparedChat.pendingTool(), preparedChat.session(), preparedChat.immediateResponse());
+        }
+
+        @Override
+        public PreparedChat prepareChat(String message, String provider, String model, String sessionId, String requestId) {
+            this.lastRequestId = requestId;
+            return prepareChat(message, provider, model, sessionId);
         }
 
         @Override
