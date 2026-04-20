@@ -238,6 +238,12 @@ Important selector rule:
 - the UI only shows providers configured in the running backend process
 - helper scripts can auto-load a repo-local `.env` so one backend process can expose multiple providers cleanly
 
+Provider status is a separate, lightweight troubleshooting surface:
+
+- the backend caches provider status briefly to avoid excessive live discovery checks
+- the UI shows `Last checked` from that backend status response
+- the UI can manually re-fetch status with `Refresh status` without reloading the provider model list
+
 ## Tool Orchestration Architecture
 
 The tool path has four distinct stages:

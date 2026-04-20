@@ -18,7 +18,7 @@ Covers:
 - Ollama, Bedrock, and Hugging Face provider behavior
 - session persistence, filtering, export/import, and mixed-provider metadata
 - artifact preview and path-safety behavior
-- controller error handling and health/model APIs
+- controller error handling, health/model APIs, and streamed chat MVC smoke coverage
 
 Use this suite when changing:
 - Spring Boot controllers or services
@@ -40,7 +40,7 @@ Covers:
 - provider/model selection behavior
 - streamed and non-streamed chat UI flows
 - session sidebar, reopening saved sessions, and mixed-provider rendering
-- message formatting, provenance display, and loading states
+- message formatting, provenance display, loading states, and provider-status refresh behavior
 
 Use this suite when changing:
 - `Home.jsx`

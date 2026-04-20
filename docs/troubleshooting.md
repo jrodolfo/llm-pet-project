@@ -140,6 +140,28 @@ Typical reasons:
 
 This is an application-level failure, not just a process-level one. The UI will usually be degraded until model discovery works.
 
+## Provider Status Looks Stale
+
+Symptoms:
+- the provider status banner still shows an older state
+- `Last checked` is not recent
+- you changed local/provider setup and the UI did not reflect it immediately
+
+Cause:
+- provider status is cached briefly on the backend to avoid excessive live discovery checks
+
+What `Last checked` means:
+- it is the timestamp of the last backend status evaluation returned to the UI
+- it is informational, not a guarantee that the provider has not changed since then
+
+Fix:
+- use `Refresh status` in the UI to re-fetch the current provider status
+- if a real chat request still fails, trust the request-time error over the cached banner state
+
+Important distinction:
+- the status banner is a lightweight readiness/troubleshooting surface
+- actual `/api/chat` and `/api/chat/stream` failures are still the source of truth for request-time provider errors
+
 ## Correlating A Failed Chat Request
 
 Chat responses now include an `X-Request-Id` header. The backend logs use the same request id for:
