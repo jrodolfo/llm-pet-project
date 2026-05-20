@@ -1,6 +1,6 @@
 # Architecture Overview
 
-This Mermaid version replaces the generated SVG because it is easier to maintain in Git, review in diffs, and update when the architecture changes.
+This Mermaid diagram is the maintained source of truth for the system architecture. Mermaid diagrams are easier to maintain in Git, review in diffs, and update when the architecture changes.
 
 The Mermaid diagram below is the source of truth for the system architecture.
 Please update this document whenever architectural changes are introduced.
