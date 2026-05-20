@@ -37,9 +37,9 @@ flowchart LR
   ReactUI -->|HTTP + SSE| ChatFlow
   ChatFlow --> ProviderHub
 
-  ChatFlow -->|plain chat| Ollama
-  ProviderHub -->|configured only| Bedrock
-  ProviderHub -->|hosted check| HF
+  ProviderHub -->|local| Ollama
+  ProviderHub -->|configured| Bedrock
+  ProviderHub -->|hosted| HF
   ChatFlow -->|tool chat| MCP
 
   MCP --> Scripts
