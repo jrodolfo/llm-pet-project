@@ -43,7 +43,7 @@ flowchart LR
   ProviderHub -->|local| Ollama
   ProviderHub -->|configured| Bedrock
   ProviderHub -->|hosted| HF
-  ChatFlow -->|tool chat| MCP
+  ChatFlow <-->|tool chat| MCP
 
   MCP --> Scripts
   Scripts --> AWS
